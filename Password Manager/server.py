@@ -1,0 +1,136 @@
+from server_protocol_handler import ServerProtocolHandler, DATA_DELIMITER
+from server_conn_manager import ServerConnectionManager
+from user_manager import UserManager
+
+class Server:
+
+
+    def __init__(self):
+        self.conn_manager = ServerConnectionManager()
+        self.socket = self.conn_manager.server_socket
+        self.protocol_handler = ServerProtocolHandler()
+        self.messages_to_send = []
+        self.user_manager = UserManager()
+
+    def run(self):
+        print(f"Server is running on private IP {self.conn_manager.get_private_ip()}")
+        while True:
+            ready_to_read = self.conn_manager.read_from_socket()
+            for current_socket in ready_to_read:
+                if current_socket is self.socket:
+                    self.conn_manager.accept_client_socket(self.socket)
+                else:
+                    print("New data from client")
+                    data = ""
+                    cmd = ""
+                    try:
+                        full_msg = self.conn_manager.receive_msg(current_socket)
+                        print(f"[SERVER]" + full_msg)
+                        cmd, data = self.protocol_handler.parse_message(full_msg)
+                        if cmd is None or data is None:
+                            self.conn_manager.close_conn(current_socket)
+                    except ConnectionResetError as e:
+                        print(e)
+                        self.conn_manager.close_conn(current_socket)
+                    except BaseException as baseEx:
+                        print(baseEx)
+                        self.conn_manager.close_conn(current_socket)
+                    if cmd == "":
+                        self.conn_manager.close_conn(current_socket)
+                    else:
+                        print((cmd, data))
+                        self.handle_client_message(current_socket, cmd, data)
+            self.send_messages_to_clients()
+
+    def handle_client_message(self, conn, cmd, data):
+        if cmd == self.protocol_handler.client_messages["login_msg"]:
+            self.handle_login_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["signup_msg"]:
+            self.handle_signup_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["register_site_msg"]:
+            self.handle_register_site_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["registered_sites_msg"]:
+            self.handle_registered_sites_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["site_info_msg"]:
+            self.handle_site_info_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["change_password_msg"]:
+            self.handle_change_password_message(conn, data)
+
+
+    def handle_login_message(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        username = data_list[0]
+        password = data_list[1]
+        if self.user_manager.does_user_exist(username):
+            if self.user_manager.user_dict[username].password == password:
+                self.user_manager.logged_users[conn] = username
+                self.build_and_queue_message(conn, "login_ok_msg", "")
+            else:
+                self.build_and_queue_message(conn, "incorrect_password_msg", "")
+        else:
+            self.build_and_queue_message(conn, "username_invalid_msg", "")
+
+
+    def handle_signup_message(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        username = data_list[0]
+        password = data_list[1]
+        if self.user_manager.does_user_exist(username):
+            self.build_and_queue_message(conn, "user_exists_msg", "")
+        elif not self.user_manager.is_strong_password(password):
+            self.build_and_queue_message(conn, "weak_password_msg", "")
+        else:
+            self.user_manager.add_user(username, password)
+            self.build_and_queue_message(conn, "signup_ok_msg", "")
+
+    def handle_register_site_message(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        site_url = data_list[0]
+        site_username = data_list[1]
+        username = self.user_manager.logged_users[conn]
+        if site_url in self.user_manager.user_dict[username].registered_sites.keys():
+            self.build_and_queue_message(conn, "already_registered_msg", "")
+        else:
+            generated_password = self.user_manager.register_site(username, site_url, site_username)
+            self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
+
+    def handle_registered_sites_message(self, conn, data):
+        username = self.user_manager.logged_users[conn]
+        registered_sites_list = self.user_manager.user_dict[username].registered_sites.keys()
+        registered_sites_msg = DATA_DELIMITER.join(registered_sites_list)
+        self.build_and_queue_message(conn, "your_sites_msg", registered_sites_msg)
+        
+
+    def handle_site_info_message(self, conn, data):
+        site_url = data
+        username = self.user_manager.logged_users[conn]
+        user_registered_sites = self.user_manager.user_dict[username].registered_sites
+        if site_url not in user_registered_sites.keys():
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+        else:
+            site_username = user_registered_sites[site_url]["username"]
+            site_password = user_registered_sites[site_url]["password"]
+            self.build_and_queue_message(conn, "info_msg", f"{site_username}{DATA_DELIMITER}{site_password}")
+
+    def handle_change_password_message(self, conn, data):
+        site_url = data
+        username = self.user_manager.logged_users[conn]
+        user_registered_sites = self.user_manager.user_dict[username].registered_sites
+        if site_url not in user_registered_sites.keys():
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+        else:
+            generated_password = self.user_manager.change_password(username, site_url)
+            self.build_and_queue_message(conn, "change_ok_msg", generated_password)
+
+    def build_and_queue_message(self, conn, cmd, data):
+        msg = self.protocol_handler.build_message(self.protocol_handler.server_messages[cmd], data)
+        self.messages_to_send.append((conn, msg))
+        
+
+    def send_messages_to_clients(self):
+        for conn, msg in self.messages_to_send:
+            self.conn_manager.send_msg(conn, msg)
+        self.messages_to_send.clear()
+
+server = Server()
+server.run()
