@@ -73,6 +73,11 @@ class DataBase:
 
         return user_id
     
+    def does_user_exist(self, username):
+        self.cur.execute("""SELECT EXISTS(SELECT 1 FROM USERS WHERE username = ? LIMIT 1)""", (username, ))
+        result = bool(self.cur.fetchone()[0])
+        return result
+    
     def user_login(self, username, password):
         self.cur.execute("""SELECT password, user_id FROM USERS WHERE username = ?""", (username, ))
         
@@ -80,7 +85,13 @@ class DataBase:
         if user_password == password:
             return user_id
         
-        return False
+        return None
+
+    def does_site_exist(self, user_id, site_url):
+        self.cur.execute("""SELECT EXISTS(SELECT 1 FROM USER_SITE WHERE user_id = ? AND site_url = ? LIMIT 1)""",
+                         (user_id, site_url))
+        result = bool(self.cur.fetchone()[0])
+        return result
 
     def register_site(self, user_id, site_url, site_username, site_password):
         self.cur.execute("""INSERT INTO USER_SITE (user_id, site_url, site_username, site_password, preference_id)
@@ -113,14 +124,15 @@ class DataBase:
         return self.cur.fetchone()
     
 
-db = DataBase()
-db.user_signup("noam", "1234", "noam@gmail.com", "054")
-user_id = db.user_login("noam", "1234")
-db.register_site(user_id, "mashov", "noam123", "Abcd123")
-db.register_site(user_id, "whatsapp", "noam456", "Abcd456")
-print(db.get_registered_sites(user_id))
-print(db.get_site_info(user_id, "mashov"))
-        
+# db = DataBase()
+# db.user_signup("noam", "1234", "noam@gmail.com", "054")
+# user_id = db.user_login("noam", "1234")
+# db.register_site(user_id, "mashov", "noam123", "Abcd123")
+# db.register_site(user_id, "whatsapp", "noam456", "Abcd456")
+# print(db.get_registered_sites(user_id))
+# print(db.get_site_info(user_id, "mashov"))
 
-
-    
+# if db.does_user_exist("noam2"):
+#     user_id = db.user_login("noam2", "")
+# else:
+#     print("user doesn't exist")

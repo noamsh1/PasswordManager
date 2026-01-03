@@ -1,6 +1,8 @@
 from server_protocol_handler import ServerProtocolHandler, DATA_DELIMITER
 from server_conn_manager import ServerConnectionManager
 from user_manager import UserManager
+from database import DataBase
+from password_handler import PasswordHandler
 
 class Server:
 
@@ -11,6 +13,7 @@ class Server:
         self.protocol_handler = ServerProtocolHandler()
         self.messages_to_send = []
         self.user_manager = UserManager()
+        self.db_manager = DataBase()
 
     def run(self):
         print(f"Server is running on private IP {self.conn_manager.get_private_ip()}")
@@ -61,66 +64,109 @@ class Server:
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
-        if self.user_manager.does_user_exist(username):
-            if self.user_manager.user_dict[username].password == password:
-                self.user_manager.logged_users[conn] = username
-                self.build_and_queue_message(conn, "login_ok_msg", "")
-            else:
+        if self.db_manager.does_user_exist(username):
+            result = self.db_manager.user_login(username, password)
+            if result == None:
                 self.build_and_queue_message(conn, "incorrect_password_msg", "")
+            else:
+                self.user_manager.logged_users[conn] = result
+                self.build_and_queue_message(conn, "login_ok_msg", "")
         else:
             self.build_and_queue_message(conn, "username_invalid_msg", "")
+
+        # if self.user_manager.does_user_exist(username):
+        #     if self.user_manager.user_dict[username].password == password:
+        #         self.user_manager.logged_users[conn] = username
+        #         self.build_and_queue_message(conn, "login_ok_msg", "")
+        #     else:
+        #         self.build_and_queue_message(conn, "incorrect_password_msg", "")
+        # else:
+        #     self.build_and_queue_message(conn, "username_invalid_msg", "")
 
 
     def handle_signup_message(self, conn, data):
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
-        if self.user_manager.does_user_exist(username):
-            self.build_and_queue_message(conn, "user_exists_msg", "")
-        elif not self.user_manager.is_strong_password(password):
+        if not PasswordHandler.is_strong_password(password):
             self.build_and_queue_message(conn, "weak_password_msg", "")
         else:
-            self.user_manager.add_user(username, password)
-            self.build_and_queue_message(conn, "signup_ok_msg", "")
+            result = self.db_manager.user_signup(username, password, "", "")
+            if result == None:
+                self.build_and_queue_message(conn, "user_exists_msg", "")
+            else:
+                self.build_and_queue_message(conn, "signup_ok_msg", "")
+
+        # if self.user_manager.does_user_exist(username):
+        #     self.build_and_queue_message(conn, "user_exists_msg", "")
+        # elif not self.user_manager.is_strong_password(password):
+        #     self.build_and_queue_message(conn, "weak_password_msg", "")
+        # else:
+        #     self.user_manager.add_user(username, password)
+        #     self.build_and_queue_message(conn, "signup_ok_msg", "")
 
     def handle_register_site_message(self, conn, data):
         data_list = self.protocol_handler.split_data(data)
         site_url = data_list[0]
         site_username = data_list[1]
-        username = self.user_manager.logged_users[conn]
-        if site_url in self.user_manager.user_dict[username].registered_sites.keys():
+        user_id = self.user_manager.logged_users[conn]
+        
+        if self.db_manager.does_site_exist(user_id, site_url):
             self.build_and_queue_message(conn, "already_registered_msg", "")
         else:
-            generated_password = self.user_manager.register_site(username, site_url, site_username)
+            generated_password = PasswordHandler.generate_password(12)
+            self.db_manager.register_site(user_id, site_url, site_username, generated_password)
             self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
 
+        # if site_url in self.user_manager.user_dict[username].registered_sites.keys():
+        #     self.build_and_queue_message(conn, "already_registered_msg", "")
+        # else:
+        #     generated_password = self.user_manager.register_site(username, site_url, site_username)
+        #     self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
+
     def handle_registered_sites_message(self, conn, data):
-        username = self.user_manager.logged_users[conn]
-        registered_sites_list = self.user_manager.user_dict[username].registered_sites.keys()
+        user_id = self.user_manager.logged_users[conn]
+        # registered_sites_list = self.user_manager.user_dict[username].registered_sites.keys()
+        registered_sites_list = self.db_manager.get_registered_sites(user_id)
         registered_sites_msg = DATA_DELIMITER.join(registered_sites_list)
         self.build_and_queue_message(conn, "your_sites_msg", registered_sites_msg)
         
 
     def handle_site_info_message(self, conn, data):
         site_url = data
-        username = self.user_manager.logged_users[conn]
-        user_registered_sites = self.user_manager.user_dict[username].registered_sites
-        if site_url not in user_registered_sites.keys():
-            self.build_and_queue_message(conn, "not_registered_msg", "")
-        else:
-            site_username = user_registered_sites[site_url]["username"]
-            site_password = user_registered_sites[site_url]["password"]
+        user_id = self.user_manager.logged_users[conn]
+
+        if self.db_manager.does_site_exist(user_id, site_url):
+            site_username, site_password = self.db_manager.get_site_info(user_id, site_url)
             self.build_and_queue_message(conn, "info_msg", f"{site_username}{DATA_DELIMITER}{site_password}")
+        else:
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+
+        # user_registered_sites = self.user_manager.user_dict[username].registered_sites
+        # if site_url not in user_registered_sites.keys():
+        #     self.build_and_queue_message(conn, "not_registered_msg", "")
+        # else:
+        #     site_username = user_registered_sites[site_url]["username"]
+        #     site_password = user_registered_sites[site_url]["password"]
+        #     self.build_and_queue_message(conn, "info_msg", f"{site_username}{DATA_DELIMITER}{site_password}")
 
     def handle_change_password_message(self, conn, data):
         site_url = data
-        username = self.user_manager.logged_users[conn]
-        user_registered_sites = self.user_manager.user_dict[username].registered_sites
-        if site_url not in user_registered_sites.keys():
-            self.build_and_queue_message(conn, "not_registered_msg", "")
-        else:
-            generated_password = self.user_manager.change_password(username, site_url)
+        user_id = self.user_manager.logged_users[conn]
+
+        if self.db_manager.does_site_exist(user_id, site_url):
+            generated_password = PasswordHandler.generate_password(12)
+            self.db_manager.change_site_password(user_id, site_url, generated_password)
             self.build_and_queue_message(conn, "change_ok_msg", generated_password)
+        else:
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+            
+        # user_registered_sites = self.user_manager.user_dict[username].registered_sites
+        # if site_url not in user_registered_sites.keys():
+        #     self.build_and_queue_message(conn, "not_registered_msg", "")
+        # else:
+        #     generated_password = self.user_manager.change_password(username, site_url)
+        #     self.build_and_queue_message(conn, "change_ok_msg", generated_password)
 
     def build_and_queue_message(self, conn, cmd, data):
         msg = self.protocol_handler.build_message(self.protocol_handler.server_messages[cmd], data)

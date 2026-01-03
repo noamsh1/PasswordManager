@@ -7,7 +7,7 @@ from password_handler import PasswordHandler
 
 script_folder_path = Path(__file__).parent
 USER_FOLDER_PATH = fr"{script_folder_path}\user_folder"
-print(USER_FOLDER_PATH)
+# print(USER_FOLDER_PATH)
 
 class UserManager:
 
@@ -54,13 +54,13 @@ class UserManager:
     def is_strong_password(self, password):
         return PasswordHandler.is_strong_password(password)
     
-    def register_site(self, username, site_url, site_username):
-        generated_password = self.user_dict[username].register_site(site_url, site_username)
-        self.save_user(self.user_dict[username])
-        return generated_password
+    # def register_site(self, username, site_url, site_username):
+    #     generated_password = self.user_dict[username].register_site(site_url, site_username)
+    #     self.save_user(self.user_dict[username])
+    #     return generated_password
     
-    def change_password(self, username, site_url):
-        generated_password = self.user_dict[username].change_site_password(site_url)
-        self.save_user(self.user_dict[username])
-        return generated_password
+    # def change_password(self, username, site_url):
+    #     generated_password = self.user_dict[username].change_site_password(site_url)
+    #     self.save_user(self.user_dict[username])
+    #     return generated_password
     
