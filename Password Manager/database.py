@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import hashlib
 
 DB_PATH = r"C:\Users\noams\OneDrive\Databases\PasswordManager.db"
 
@@ -29,19 +30,19 @@ class DataBase:
                         )""")
         
         # create PASSWORD_PREFERENCES table
-        self.cur.execute(""""CREATE TABLE "PASSWORD_PREFERENCES" (
+        self.cur.execute("""CREATE TABLE "PASSWORD_PREFERENCES" (
                             "preferences_id"	INTEGER,
                             "max_length"	INTEGER DEFAULT 16,
                             "include_upper"	BOOLEAN DEFAULT 1,
                             "include_lower"	BOOLEAN DEFAULT 1,
                             "include_num"	BOOLEAN DEFAULT 1,
                             "include_special"	BOOLEAN DEFAULT 1,
-                            "special_allowed"	TEXT DEFAULT -_!@#$%^&*/|,
+                            "special_allowed"	TEXT DEFAULT "-_!@#$%^&*/|",
                             "can_start_with_upper"	BOOLEAN DEFAULT 1,
                             "can_start_with_lower"	BOOLEAN DEFAULT 1,
                             "can_start_with_num"	BOOLEAN DEFAULT 1,
                             "can_start_with_special"	BOOLEAN DEFAULT 1,
-                            "special_allowed_start"	TEXT DEFAULT -_!@#$%^&*/|,
+                            "special_allowed_start"	TEXT DEFAULT "-_!@#$%^&*/|",
                             PRIMARY KEY("preferences_id" AUTOINCREMENT)
                         )""")
 
@@ -61,10 +62,15 @@ class DataBase:
 
     def user_signup(self, username, password, email, phone_number):
         try:
+            password_data = password.encode()
+            hashed_password = hashlib.sha256(password_data)
+            password_hex = hashed_password.hexdigest()
             self.cur.execute("""INSERT INTO USERS (username, password, email, phone_number)
                             VALUES(?,?,?,?)""", 
-                            (username, password, email, phone_number))
+                            (username, password_hex, email, phone_number))
         except sqlite3.IntegrityError as e:
+            return None
+        except AttributeError as e:
             return None
         
         user_id = self.cur.lastrowid
@@ -80,9 +86,16 @@ class DataBase:
     
     def user_login(self, username, password):
         self.cur.execute("""SELECT password, user_id FROM USERS WHERE username = ?""", (username, ))
+
+        try:
+            password_data = password.encode()
+            hashed_password = hashlib.sha256(password_data)
+            password_hex = hashed_password.hexdigest()
+        except AttributeError as e:
+            return None
         
         user_password, user_id = self.cur.fetchone()
-        if user_password == password:
+        if user_password == password_hex:
             return user_id
         
         return None
@@ -122,6 +135,8 @@ class DataBase:
         self.cur.execute("""SELECT site_username, site_password FROM USER_SITE WHERE user_id = ? AND site_url = ?""", (user_id, site_url))
 
         return self.cur.fetchone()
+    
+    
     
 
 # db = DataBase()

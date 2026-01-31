@@ -27,7 +27,8 @@ class Server:
                     data = ""
                     cmd = ""
                     try:
-                        full_msg = self.conn_manager.receive_msg(current_socket)
+                        encrypted_msg = self.conn_manager.receive_msg(current_socket)
+                        full_msg = self.conn_manager.decrypt_msg(current_socket, encrypted_msg)
                         print(f"[SERVER]" + full_msg)
                         cmd, data = self.protocol_handler.parse_message(full_msg)
                         if cmd is None or data is None:
@@ -175,7 +176,8 @@ class Server:
 
     def send_messages_to_clients(self):
         for conn, msg in self.messages_to_send:
-            self.conn_manager.send_msg(conn, msg)
+            encrypted_msg = self.conn_manager.encrypt_msg(conn, msg)
+            self.conn_manager.send_msg(conn, encrypted_msg)
         self.messages_to_send.clear()
 
 server = Server()

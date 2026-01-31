@@ -79,11 +79,13 @@ class Client:
 
     def build_and_send_message(self, cmd, data):
         msg = self.protocol_handler.build_message(cmd, data)
-        self.conn_manager.send_msg(self.conn_manager.socket, msg)
+        encrypted_msg = self.conn_manager.encrypt_data(msg, self.conn_manager.get_AES())
+        self.conn_manager.send_msg(self.conn_manager.socket, encrypted_msg)
 
     def receive_and_parse_message(self):
-        msg = self.conn_manager.receive_msg(self.conn_manager.socket)
-        cmd, data = self.protocol_handler.parse_message(msg)
+        encrypted_msg = self.conn_manager.receive_msg(self.conn_manager.socket)
+        decrypted_msg = self.conn_manager.decrypt_data(encrypted_msg, self.conn_manager.get_AES())
+        cmd, data = self.protocol_handler.parse_message(decrypted_msg)
         return cmd, data
 
 client = Client()

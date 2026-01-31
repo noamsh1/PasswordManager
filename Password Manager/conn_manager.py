@@ -1,4 +1,5 @@
 import socket
+from cryptography.fernet import Fernet
 
 SERVER_PORT = 5678
 MAX_MESSAGE_LENGTH = 1024
@@ -12,7 +13,33 @@ class ConnectionManager():
         return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def receive_msg(self, socket):
-        return socket.recv(MAX_MESSAGE_LENGTH).decode()
+        msg = socket.recv(MAX_MESSAGE_LENGTH)
+        try:
+            decoded_msg = msg.decode()
+        except UnicodeDecodeError as e:
+            return msg
+        else:
+            return decoded_msg
     
     def send_msg(self, socket, msg):
-        socket.send(msg.encode())
+        if isinstance(msg, str):
+            socket.send(msg.encode())
+        elif isinstance(msg, bytes):
+            socket.send(msg)
+        else:
+            print("msg couldn't be sent")
+
+
+    def encrypt_data(self, data, AES_key):
+        encryptor = Fernet(AES_key)
+        msg_bytes = data.encode()
+        return encryptor.encrypt(msg_bytes)
+
+    def decrypt_data(self, data, AES_key):
+        decryptor = Fernet(AES_key)
+        try:
+            decrypted_msg = decryptor.decrypt(data).decode()
+        except Exception as e:
+            return None
+        else:
+            return decrypted_msg
