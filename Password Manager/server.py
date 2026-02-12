@@ -3,6 +3,7 @@ from server_conn_manager import ServerConnectionManager
 from user_manager import UserManager
 from database import DataBase
 from password_handler import PasswordHandler
+import uuid
 
 class Server:
 
@@ -89,14 +90,17 @@ class Server:
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
-        if not PasswordHandler.is_strong_password(password):
-            self.build_and_queue_message(conn, "weak_password_msg", "")
+        if self.db_manager.does_user_exist(username):
+            self.build_and_queue_message(conn, "user_exists_msg", "")
         else:
-            result = self.db_manager.user_signup(username, password, "", "")
-            if result == None:
-                self.build_and_queue_message(conn, "user_exists_msg", "")
+            if not PasswordHandler.is_strong_password(password):
+                self.build_and_queue_message(conn, "weak_password_msg", "")
             else:
-                self.build_and_queue_message(conn, "signup_ok_msg", "")
+                result = self.db_manager.user_signup(username, password, uuid.uuid4().bytes, uuid.uuid4().bytes )
+                if result == None:
+                    self.build_and_queue_message(conn, "user_exists_msg", "")
+                else:
+                    self.build_and_queue_message(conn, "signup_ok_msg", "")
 
         # if self.user_manager.does_user_exist(username):
         #     self.build_and_queue_message(conn, "user_exists_msg", "")
