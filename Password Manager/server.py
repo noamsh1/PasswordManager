@@ -3,7 +3,9 @@ from server_conn_manager import ServerConnectionManager
 from user_manager import UserManager
 from database import DataBase
 from password_handler import PasswordHandler
+from email_manager import EmailManager, EMAIL_CODE_EXPIRATION_TIME
 import uuid
+import datetime
 
 class Server:
 
@@ -15,6 +17,8 @@ class Server:
         self.messages_to_send = []
         self.user_manager = UserManager()
         self.db_manager = DataBase()
+        self.email_manager = EmailManager()
+        self.conn_code = {}
 
     def run(self):
         print(f"Server is running on private IP {self.conn_manager.get_private_ip()}")
@@ -52,6 +56,12 @@ class Server:
             self.handle_login_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["signup_msg"]:
             self.handle_signup_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["my_email_msg"]:
+            self.handle_my_email_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["send_code_msg"]:
+            self.handle_send_code_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["code_login_msg"]:
+            self.handle_code_login_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["register_site_msg"]:
             self.handle_register_site_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["registered_sites_msg"]:
@@ -90,13 +100,15 @@ class Server:
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
+        email = data_list[2]
+        phone_number = data_list[3]
         if self.db_manager.does_user_exist(username):
             self.build_and_queue_message(conn, "user_exists_msg", "")
         else:
             if not PasswordHandler.is_strong_password(password):
                 self.build_and_queue_message(conn, "weak_password_msg", "")
             else:
-                result = self.db_manager.user_signup(username, password, uuid.uuid4().bytes, uuid.uuid4().bytes )
+                result = self.db_manager.user_signup(username, password, email, phone_number)
                 if result == None:
                     self.build_and_queue_message(conn, "user_exists_msg", "")
                 else:
@@ -109,6 +121,30 @@ class Server:
         # else:
         #     self.user_manager.add_user(username, password)
         #     self.build_and_queue_message(conn, "signup_ok_msg", "")
+
+    def handle_my_email_msg(self, conn, data):
+        try:
+            user_email = self.db_manager.get_user_email(data)
+            self.build_and_queue_message(conn, "your_email_msg", user_email)
+        except TypeError as e:
+            self.build_and_queue_message(conn, "no_email_registered_msg", "")
+
+    def handle_send_code_msg(self, conn, data):
+        if data != "":
+            code, code_creation_time = self.email_manager.send_login_code_gmail(data)
+            self.conn_code[conn] = (code, code_creation_time)
+            self.build_and_queue_message(conn, "code_sent_msg", "")
+
+    def handle_code_login_msg(self, conn, data):
+        sent_code, code_creation_time = self.conn_code[conn]
+        current_time = datetime.datetime.now()
+        time_diff = current_time - code_creation_time
+        if time_diff > datetime.timedelta(seconds = EMAIL_CODE_EXPIRATION_TIME):
+            self.build_and_queue_message(conn, "code_expired_msg", "")
+        elif sent_code == data:
+            self.build_and_queue_message(conn, "code_correct_msg", "")
+        else:
+            self.build_and_queue_message(conn, "code_incorrect_msg", "")
 
     def handle_register_site_message(self, conn, data):
         data_list = self.protocol_handler.split_data(data)

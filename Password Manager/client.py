@@ -2,6 +2,8 @@ import sys
 from client_protocol_handler import ClientProtocolHandler, DATA_DELIMITER
 from client_conn_manager import ClientConnectionManager, DEFAULT_SERVER_IP
 from ui import UI
+from email_validator import validate_email, EmailNotValidError
+from client_status import Status
 
 class Client:
 
@@ -10,6 +12,12 @@ class Client:
         self.conn_manager = ClientConnectionManager()
         self.conn_manager.connect(self.get_server_ip())
         self.ui = UI(self)
+        self.username = ""
+        self.entered_username = False
+        self.entered_password = False
+        self.is_email_verified = False
+        self.client_email = ""
+        self.status = Status.NORMAL
 
     def get_server_ip(self):
         if len(sys.argv) > 1:
@@ -20,8 +28,16 @@ class Client:
     def run(self):
         self.ui.run()
 
-    def signup(self, username, password):
-        self.build_and_send_message(self.protocol_handler.client_messages["signup_msg"], f"{username}{DATA_DELIMITER}{password}")
+    def change_status(self, status):
+        self.status = status
+
+    def can_user_signup(self):
+        if self.is_email_verified:
+            return True
+
+    def signup(self, username, password, email, phone_number):
+        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}"
+        self.build_and_send_message(self.protocol_handler.client_messages["signup_msg"], msg_data)
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["user_exists_msg"]:
             self.ui.display_signup_error("Username already exists")
@@ -37,11 +53,51 @@ class Client:
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["login_ok_msg"]:
             print("login successful")
-            self.ui.login_succesful(username)
+            self.username = username
+            self.ui.login_succesful(username, password)
         elif cmd == self.protocol_handler.server_messages["username_invalid_msg"]:
             self.ui.display_login_error("Username does not exist")
         elif cmd == self.protocol_handler.server_messages["incorrect_password_msg"]:
             self.ui.display_login_error("Password is incorrect")
+
+    def code_login(self, code):
+        self.build_and_send_message(self.protocol_handler.client_messages["code_login_msg"], code)
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["code_correct_msg"]:
+            self.is_email_verified = True
+            if self.status == Status.SIGNING_IN:
+                self.ui.signup_code_correct()
+            elif self.status == Status.LOGGING_IN:
+                self.ui.login_code_correct()
+        elif cmd == self.protocol_handler.server_messages["code_incorrect_msg"]:
+            self.ui.code_incorrect()
+        elif cmd == self.protocol_handler.server_messages["code_expired_msg"]:
+            self.ui.code_expired()
+
+    def request_code(self, client_email):
+        self.build_and_send_message(self.protocol_handler.client_messages["send_code_msg"], f"{client_email}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["code_sent_msg"]:
+            return True
+        else:
+            return False
+        
+    def get_email(self, username = ""):
+        if username == "":
+            username = self.username
+        self.build_and_send_message(self.protocol_handler.client_messages["my_email_msg"], f"{username}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["your_email_msg"]:
+            return data
+        elif cmd == self.protocol_handler.server_messages["no_email_registered_msg"]:
+            return None
+        
+    def is_email_valid(self, email):
+        try:
+            validate_email(email, check_deliverability=True)
+            return True
+        except EmailNotValidError as e:
+            return False
 
     def register_site(self, site_url, site_username):
         self.build_and_send_message(self.protocol_handler.client_messages["register_site_msg"], f"{site_url}{DATA_DELIMITER}{site_username}")

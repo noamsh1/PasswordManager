@@ -1,9 +1,13 @@
 import customtkinter as ctk
+import threading
 from signup_window import SignupWindow
 from login_window import LoginWindow
+from auth_select_window import AuthSelectWindow
+from code_login_window import CodeLoginWindow
 from site_registration_window import SiteRegistrationWindow
 from site_info_window import SiteInfoWindow
 from CTkListbox import *
+from client_status import Status
 
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 675
@@ -30,6 +34,8 @@ class UI:
 
         self.signup_window = None
 
+        self.auth_select_window = None
+        self.code_login_window = None
 
         self.register_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Register Site", text_color= "black", border_color= "green", command= self.run_site_registration_window)
         self.username_text = ctk.CTkLabel(self.window, anchor= "center", text= "", font= ("sans", 25), text_color= "black")
@@ -46,13 +52,14 @@ class UI:
         self.window.mainloop()
 
     def run_signup_window(self):
+        self.client.change_status(Status.SIGNING_IN)
         if self.signup_window is None or not self.signup_window.winfo_exists():
             self.signup_window = SignupWindow(self)
         else:
             self.signup_window.focus()
 
-    def call_signup(self, username, password):
-        self.client.signup(username, password)
+    def call_signup(self, username, password, email, phone_number):
+        self.client.signup(username, password, email, phone_number)
 
     def display_signup_error(self, msg):
         self.signup_window.display_signup_error(msg)
@@ -62,6 +69,7 @@ class UI:
         self.call_login(username, password)
 
     def run_login_window(self):
+        self.client.change_status(Status.LOGGING_IN)
         if self.login_window is None or not self.login_window.winfo_exists():
             self.login_window = LoginWindow(self)
         else:
@@ -74,12 +82,69 @@ class UI:
     def display_login_error(self, msg):
         self.login_window.display_login_error(msg)
 
-    def login_succesful(self, username):
+    def login_succesful(self, username, password):
         if not self.login_window is None:
             self.login_window.close_window()
         self.login_button.place_forget()
         self.signup_button.place_forget()
+        if self.client.status == Status.SIGNING_IN:
+            self.setup_user(username)
+            self.client.change_status(Status.NORMAL)
+        elif self.client.status == Status.LOGGING_IN:
+            self.run_auth_select_window()
+
+
+    def get_email(self):
+        return self.client.get_email()
+
+    def run_auth_select_window(self):
+        if self.auth_select_window is None or not self.auth_select_window.winfo_exists():
+            self.auth_select_window = AuthSelectWindow(self)
+        else:
+            self.auth_select_window.focus()
+
+
+    def run_code_login_window(self, client_email):
+        if self.code_login_window is None or not self.code_login_window.winfo_exists():
+            self.code_login_window = CodeLoginWindow(self, client_email)
+            self.code_login_window.focus()
+            self.code_login_window.lift()
+        else:
+            self.code_login_window.focus()
+            self.code_login_window.lift()
+
+    def request_login_code(self, client_email):
+        was_code_sent = self.client.request_code(client_email)
+        if was_code_sent:
+            self.run_code_login_window(client_email)
+    
+    def call_is_email_valid(self, email):
+        result = self.client.is_email_valid(email)
+        if result:
+            self.signup_window.email_valid()
+        else:
+            self.signup_window.email_invalid()
+
+    def call_check_code(self, code):
+        self.client.code_login(code)
+
+    def signup_code_correct(self):
+        self.code_login_window.close_window()
+        if self.client.can_user_signup():
+            self.signup_window.can_signup()
+            self.signup_window.email_verified()
+
+
+    def login_code_correct(self):
+        self.code_login_window.close_window()
+        username = self.client.username
         self.setup_user(username)
+
+    def code_incorrect(self):
+        self.code_login_window.incorrect_code_feedback()
+
+    def code_expired(self):
+        self.code_login_window.display_code_expired_msg()
 
     def get_registered_sites(self):
         return self.client.get_registered_sites()

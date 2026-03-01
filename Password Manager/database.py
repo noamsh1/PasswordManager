@@ -32,8 +32,8 @@ class DataBase:
                             password TEXT NOT NULL,
                             username TEXT NOT NULL UNIQUE,
                             password_salt BLOB NOT NULL,
-                            email BLOB NOT NULL UNIQUE,
-                            phone_number BLOB NOT NULL UNIQUE,
+                            email BLOB NOT NULL,
+                            phone_number BLOB NOT NULL,
                             user_dk BLOB NOT NULL UNIQUE,
                             key_salt BLOB NOT NULL,
                             PRIMARY KEY("user_id" AUTOINCREMENT)
@@ -115,28 +115,28 @@ class DataBase:
 
             user_dk = Fernet.generate_key()
             dk_f = Fernet(user_dk)
-            encrypted_email = dk_f.encrypt(email)
-            encrypted_phone_number = dk_f.encrypt(phone_number)
+            encrypted_email = dk_f.encrypt(email.encode())
+            encrypted_phone_number = dk_f.encrypt(phone_number.encode())
 
             random_key_salt = os.urandom(16)
             raw_key = self.derive_key((username + password_hex).encode(), random_key_salt)
             dk_encryption_key = base64.urlsafe_b64encode(raw_key)
+            
             f = Fernet(dk_encryption_key)
             encrypted_user_dk = f.encrypt(user_dk)
             self.cur.execute("""INSERT INTO USERS (username, password, password_salt, email, phone_number, user_dk, key_salt)
                             VALUES(?,?,?,?,?,?,?)""", 
                             (username, password_hex, random_password_salt, encrypted_email, encrypted_phone_number, encrypted_user_dk, random_key_salt))
         except sqlite3.IntegrityError as e:
-            print(e)
             return None
         except AttributeError as e:
-            print(e)
             return None
         
         user_id = self.cur.lastrowid
 
         self.conn.commit()
 
+        self.users_keys[user_id] = dk_encryption_key
         return user_id
     
     def does_user_exist(self, username):
@@ -163,6 +163,12 @@ class DataBase:
             return user_id
         
         return None
+
+    def get_user_email(self, username):
+        self.cur.execute("""SELECT user_id, email FROM USERS WHERE username = ?""", (username, ))
+        user_id, email = self.cur.fetchone()
+        decrypted_email = self.decrypt_data(user_id, [email])[0]
+        return decrypted_email
 
     def does_site_exist(self, user_id, site_url):
         registered_sites = self.get_registered_sites(user_id)

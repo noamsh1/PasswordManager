@@ -22,7 +22,13 @@ PROTOCOL_SERVER = {
     "change_ok_msg" : "CHANGE_OK",
     "not_registered_msg" : "NOT_REGISTERED",
     "your_sites_msg" : "YOUR_SITES",
-    "info_msg" : "INFO"
+    "info_msg" : "INFO",
+    "code_correct_msg" : "CODE_CORRECT",
+    "code_incorrect_msg" : "CODE_INCORRECT",
+    "code_expired_msg" : "CODE_EXPIRED",
+    "code_sent_msg" : "CODE_SENT",
+    "your_email_msg" : "YOUR_EMAIL",
+    "no_email_registered_msg" : "NO_EMAIL_REGISTERED"
 }
 
 PROTOCOL_CLIENT = {
@@ -31,7 +37,10 @@ PROTOCOL_CLIENT = {
     "register_site_msg" : "REGISTER_SITE",
     "change_password_msg" : "CHANGE_PASSWORD",
     "registered_sites_msg" : "REGISTERED_SITES",
-    "site_info_msg" : "SITE_INFO"
+    "site_info_msg" : "SITE_INFO",
+    "code_login_msg" : "CODE_LOGIN",
+    "send_code_msg" : "SEND_CODE",
+    "my_email_msg" : "MY_EMAIL"
 }
 
 class ProtocolHandler:
