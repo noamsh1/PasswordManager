@@ -36,6 +36,7 @@ class DataBase:
                             phone_number BLOB NOT NULL,
                             user_dk BLOB NOT NULL UNIQUE,
                             key_salt BLOB NOT NULL,
+                            voice_signature BLOB,
                             PRIMARY KEY("user_id" AUTOINCREMENT)
                         )""")
         
@@ -103,10 +104,13 @@ class DataBase:
         data_f = Fernet(dk)
         decrypted_data = []
         for i in data:
-            decrypted_data.append(data_f.decrypt(i).decode())
+            try:
+                decrypted_data.append(data_f.decrypt(i).decode())
+            except:
+                decrypted_data.append(data_f.decrypt(i))
         return decrypted_data
 
-    def user_signup(self, username, password, email, phone_number):
+    def user_signup(self, username, password, email, phone_number, voice_signature):
         try:
             random_password_salt = os.urandom(32)
             salted_password = random_password_salt + password.encode()
@@ -117,6 +121,7 @@ class DataBase:
             dk_f = Fernet(user_dk)
             encrypted_email = dk_f.encrypt(email.encode())
             encrypted_phone_number = dk_f.encrypt(phone_number.encode())
+            encrypted_voice_signature = dk_f.encrypt(voice_signature)
 
             random_key_salt = os.urandom(16)
             raw_key = self.derive_key((username + password_hex).encode(), random_key_salt)
@@ -124,9 +129,9 @@ class DataBase:
             
             f = Fernet(dk_encryption_key)
             encrypted_user_dk = f.encrypt(user_dk)
-            self.cur.execute("""INSERT INTO USERS (username, password, password_salt, email, phone_number, user_dk, key_salt)
-                            VALUES(?,?,?,?,?,?,?)""", 
-                            (username, password_hex, random_password_salt, encrypted_email, encrypted_phone_number, encrypted_user_dk, random_key_salt))
+            self.cur.execute("""INSERT INTO USERS (username, password, password_salt, email, phone_number, user_dk, key_salt, voice_signature)
+                            VALUES(?,?,?,?,?,?,?,?)""", 
+                            (username, password_hex, random_password_salt, encrypted_email, encrypted_phone_number, encrypted_user_dk, random_key_salt, encrypted_voice_signature))
         except sqlite3.IntegrityError as e:
             return None
         except AttributeError as e:
@@ -169,6 +174,13 @@ class DataBase:
         user_id, email = self.cur.fetchone()
         decrypted_email = self.decrypt_data(user_id, [email])[0]
         return decrypted_email
+    
+    def get_voice_signature(self, username):
+        self.cur.execute("""SELECT user_id, voice_signature FROM USERS WHERE username = ?""", (username, ))
+        user_id, voice_signature = self.cur.fetchone()
+        decrypted_voice_signature = self.decrypt_data(user_id, [voice_signature])[0]
+        return decrypted_voice_signature
+
 
     def does_site_exist(self, user_id, site_url):
         registered_sites = self.get_registered_sites(user_id)

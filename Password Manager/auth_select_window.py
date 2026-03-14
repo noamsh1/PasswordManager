@@ -20,9 +20,16 @@ class AuthSelectWindow(ctk.CTkToplevel):
         self.email_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with Email", text_color= "black", border_color= "green", command= self.call_email_login)
         self.email_auth_button.place(x = 200, y = 200, anchor = "center")
 
+        self.voice_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with voice", text_color= "black", border_color= "green", command= self.call_voice_auth)
+        self.voice_auth_button.place(x = 400, y = 200, anchor=  "center")
+
     def call_email_login(self):
         email = self.app.get_email()
         self.app.request_login_code(email)
+        self.after(10, self.close_window)
+
+    def call_voice_auth(self):
+        self.app.run_voice_recording_window()
         self.after(10, self.close_window)
 
     def close_window(self):

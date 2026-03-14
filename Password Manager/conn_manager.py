@@ -2,7 +2,7 @@ import socket
 from cryptography.fernet import Fernet
 
 SERVER_PORT = 5678
-MAX_MESSAGE_LENGTH = 1024
+MAX_MESSAGE_LENGTH = 2048
 
 class ConnectionManager():
     
@@ -40,6 +40,8 @@ class ConnectionManager():
         try:
             decrypted_msg = decryptor.decrypt(data).decode()
         except Exception as e:
+            print(e)
+            print("exeption in decrypt")
             return None
         else:
             return decrypted_msg

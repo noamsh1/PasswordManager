@@ -1,9 +1,13 @@
 import sys
+import os
+import base64
 from client_protocol_handler import ClientProtocolHandler, DATA_DELIMITER
 from client_conn_manager import ClientConnectionManager, DEFAULT_SERVER_IP
 from ui import UI
 from email_validator import validate_email, EmailNotValidError
 from client_status import Status
+from audio_manager import AudioManager
+from voice_authenticator import VoiceAuthenticator
 
 class Client:
 
@@ -12,11 +16,15 @@ class Client:
         self.conn_manager = ClientConnectionManager()
         self.conn_manager.connect(self.get_server_ip())
         self.ui = UI(self)
+        self.audio_manager = AudioManager(self)
+        self.voice_authenticator = VoiceAuthenticator()
         self.username = ""
         self.entered_username = False
         self.entered_password = False
         self.is_email_verified = False
         self.client_email = ""
+        self.voice_auth_setup = False
+        self.bin_voice_signature = None
         self.status = Status.NORMAL
 
     def get_server_ip(self):
@@ -36,7 +44,12 @@ class Client:
             return True
 
     def signup(self, username, password, email, phone_number):
-        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}"
+        if self.bin_voice_signature:
+            voice_signature = base64.b64encode(self.bin_voice_signature).decode()
+        else:
+            voice_signature = ""
+        print(voice_signature)
+        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}{DATA_DELIMITER}{voice_signature}"
         self.build_and_send_message(self.protocol_handler.client_messages["signup_msg"], msg_data)
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["user_exists_msg"]:
@@ -98,6 +111,35 @@ class Client:
             return True
         except EmailNotValidError as e:
             return False
+        
+    def start_voice_recording(self):
+        self.audio_manager.start_recording()
+
+    def recording_stopped(self):
+        self.ui.recording_stopped()
+
+    def setup_voice_auth(self):
+        self.bin_voice_signature = self.voice_authenticator.calc_voice_signature(self.audio_manager.filename)
+        if self.bin_voice_signature is not None:
+            self.voice_auth_setup = True
+            self.ui.voice_auth_setup_successful()
+            os.remove(self.audio_manager.filename)
+        else:
+            self.ui.signature_extraction_error()
+
+    def voice_auth(self):
+        self.bin_voice_signature = self.voice_authenticator.calc_voice_signature(self.audio_manager.filename)
+        if self.bin_voice_signature is not None:
+            voice_signature = base64.b64encode(self.bin_voice_signature).decode()
+            self.build_and_send_message(self.protocol_handler.client_messages["voice_auth_msg"], f"{self.username}{DATA_DELIMITER}{voice_signature}")
+            cmd, data = self.receive_and_parse_message()
+            if cmd == self.protocol_handler.server_messages["voice_verified_msg"]:
+                self.ui.voice_auth_successful()
+            elif cmd == self.protocol_handler.server_messages["voice_not_verified_msg"]:
+                self.ui.voice_auth_unsuccessful()
+        else:
+            self.ui.signature_extraction_error()
+
 
     def register_site(self, site_url, site_username):
         self.build_and_send_message(self.protocol_handler.client_messages["register_site_msg"], f"{site_url}{DATA_DELIMITER}{site_username}")

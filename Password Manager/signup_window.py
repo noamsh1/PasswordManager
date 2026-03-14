@@ -54,6 +54,9 @@ class SignupWindow(ctk.CTkToplevel):
         self.verify_email_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Verify Email", text_color= "black", border_color= "green", state= "disabled", command= self.call_email_verification)
         self.verify_email_button.place(x = 500, y = 300)
 
+        self.add_voice_auth_button= ctk.CTkButton(self, width= 200, height= 50, corner_radius= 5, fg_color= "blue", hover_color= "light blue", text= "Add Voice Authentication", text_color= "black", border_color= "blue", command= self.call_run_voice_recording_window)
+        self.add_voice_auth_button.place(x = 100, y = 300)
+
         self.transient(app.window)
         self.lift()
 
@@ -94,6 +97,12 @@ class SignupWindow(ctk.CTkToplevel):
 
     def email_verified(self):
         self.verify_email_button.configure(state = "disabled")
+
+    def call_run_voice_recording_window(self):
+        self.app.run_voice_recording_window()
+
+    def voice_auth_added(self):
+        self.add_voice_auth_button.configure(border_color = "green", border_width = 3)
 
     def display_signup_error(self, msg):
         self.error_text.configure(text= msg)

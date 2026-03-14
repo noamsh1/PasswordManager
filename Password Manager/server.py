@@ -4,8 +4,10 @@ from user_manager import UserManager
 from database import DataBase
 from password_handler import PasswordHandler
 from email_manager import EmailManager, EMAIL_CODE_EXPIRATION_TIME
+from voice_authenticator import VoiceAuthenticator
 import uuid
 import datetime
+import base64
 
 class Server:
 
@@ -18,6 +20,7 @@ class Server:
         self.user_manager = UserManager()
         self.db_manager = DataBase()
         self.email_manager = EmailManager()
+        self.voice_authenticator = VoiceAuthenticator()
         self.conn_code = {}
 
     def run(self):
@@ -62,6 +65,8 @@ class Server:
             self.handle_send_code_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["code_login_msg"]:
             self.handle_code_login_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["voice_auth_msg"]:
+            self.handle_voice_auth_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["register_site_msg"]:
             self.handle_register_site_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["registered_sites_msg"]:
@@ -102,13 +107,18 @@ class Server:
         password = data_list[1]
         email = data_list[2]
         phone_number = data_list[3]
+        voice_signature = data_list[4]
+        if voice_signature:
+            bin_voice_signature = base64.b64decode(voice_signature)
+        else:
+            bin_voice_signature = None
         if self.db_manager.does_user_exist(username):
             self.build_and_queue_message(conn, "user_exists_msg", "")
         else:
             if not PasswordHandler.is_strong_password(password):
                 self.build_and_queue_message(conn, "weak_password_msg", "")
             else:
-                result = self.db_manager.user_signup(username, password, email, phone_number)
+                result = self.db_manager.user_signup(username, password, email, phone_number, bin_voice_signature)
                 if result == None:
                     self.build_and_queue_message(conn, "user_exists_msg", "")
                 else:
@@ -145,6 +155,18 @@ class Server:
             self.build_and_queue_message(conn, "code_correct_msg", "")
         else:
             self.build_and_queue_message(conn, "code_incorrect_msg", "")
+
+    def handle_voice_auth_msg(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        username = data_list[0]
+        login_voice_signature = data_list[1]
+        bin_login_voice_signature = base64.b64decode(login_voice_signature)
+        bin_stored_voice_signature = self.db_manager.get_voice_signature(username)
+        print(bin_stored_voice_signature)
+        if self.voice_authenticator.verify_user(bin_stored_voice_signature, bin_login_voice_signature):
+            self.build_and_queue_message(conn, "voice_verified_msg", "")
+        else:
+            self.build_and_queue_message(conn, "voice_not_verified_msg", "")
 
     def handle_register_site_message(self, conn, data):
         data_list = self.protocol_handler.split_data(data)

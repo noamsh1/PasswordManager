@@ -28,7 +28,9 @@ PROTOCOL_SERVER = {
     "code_expired_msg" : "CODE_EXPIRED",
     "code_sent_msg" : "CODE_SENT",
     "your_email_msg" : "YOUR_EMAIL",
-    "no_email_registered_msg" : "NO_EMAIL_REGISTERED"
+    "no_email_registered_msg" : "NO_EMAIL_REGISTERED",
+    "voice_verified_msg" : "VOICE_VERIFIED",
+    "voice_not_verified_msg" : "VOICE_NOT_VERIFIED"
 }
 
 PROTOCOL_CLIENT = {
@@ -40,7 +42,8 @@ PROTOCOL_CLIENT = {
     "site_info_msg" : "SITE_INFO",
     "code_login_msg" : "CODE_LOGIN",
     "send_code_msg" : "SEND_CODE",
-    "my_email_msg" : "MY_EMAIL"
+    "my_email_msg" : "MY_EMAIL",
+    "voice_auth_msg" : "VOICE_AUTH"
 }
 
 class ProtocolHandler:

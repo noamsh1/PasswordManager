@@ -4,6 +4,7 @@ from signup_window import SignupWindow
 from login_window import LoginWindow
 from auth_select_window import AuthSelectWindow
 from code_login_window import CodeLoginWindow
+from voice_recording_window import VoiceRecordingWindow
 from site_registration_window import SiteRegistrationWindow
 from site_info_window import SiteInfoWindow
 from CTkListbox import *
@@ -36,6 +37,7 @@ class UI:
 
         self.auth_select_window = None
         self.code_login_window = None
+        self.voice_recording_window = None
 
         self.register_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Register Site", text_color= "black", border_color= "green", command= self.run_site_registration_window)
         self.username_text = ctk.CTkLabel(self.window, anchor= "center", text= "", font= ("sans", 25), text_color= "black")
@@ -145,6 +147,46 @@ class UI:
 
     def code_expired(self):
         self.code_login_window.display_code_expired_msg()
+
+    def run_voice_recording_window(self):
+        if self.voice_recording_window is None or not self.voice_recording_window.winfo_exists():
+            if self.client.status == Status.SIGNING_IN:
+                is_signing_in = True
+            else:
+                is_signing_in = False
+            self.voice_recording_window = VoiceRecordingWindow(self, is_signing_in)
+            self.voice_recording_window.focus()
+            self.voice_recording_window.lift()
+        else:
+            self.voice_recording_window.focus()
+            self.voice_recording_window.lift()
+
+    def call_start_recording(self):
+        self.client.start_voice_recording()
+
+    def recording_stopped(self):
+        self.voice_recording_window.recording_stopped()
+
+    def call_setup_voice_auth(self):
+        self.client.setup_voice_auth()
+
+    def voice_auth_setup_successful(self):
+        self.voice_recording_window.close_window()
+        self.signup_window.voice_auth_added()
+
+    def signature_extraction_error(self):
+        self.voice_recording_window.display_error("Could not extract voice signature. Please record again.")
+
+    def call_voice_auth(self):
+        self.client.voice_auth()
+
+    def voice_auth_successful(self):
+        self.voice_recording_window.close_window()
+        username = self.client.username
+        self.setup_user(username)
+
+    def voice_auth_unsuccessful(self):
+        self.voice_recording_window.display_error("Voice didn't match. Try recording again.")
 
     def get_registered_sites(self):
         return self.client.get_registered_sites()
