@@ -17,6 +17,8 @@ PROTOCOL_SERVER = {
     "login_ok_msg" : "LOGIN_OK",
     "username_invalid_msg" : "USERNAME_INVALID",
     "incorrect_password_msg" : "INCORRECT_PASSWORD",
+    "preferences_saved_msg" : "PREFERENCES_SAVED",
+    "your_preferences_msg" : "YOUR_PREFERENCES",
     "registration_ok_msg" : "REGISTRATION_OK",
     "already_registered_msg" : "ALREADY_REGISTERED",
     "change_ok_msg" : "CHANGE_OK",
@@ -36,6 +38,8 @@ PROTOCOL_SERVER = {
 PROTOCOL_CLIENT = {
     "signup_msg" : "SIGNUP",
     "login_msg" : "LOGIN",
+    "save_preferences_msg" : "SAVE_PREFERENCES",
+    "get_preferences_msg" : "GET_PREFERENCES",
     "register_site_msg" : "REGISTER_SITE",
     "change_password_msg" : "CHANGE_PASSWORD",
     "registered_sites_msg" : "REGISTERED_SITES",

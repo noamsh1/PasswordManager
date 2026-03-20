@@ -204,16 +204,66 @@ class DataBase:
         self.cur.execute("""SELECT COUNT(*) FROM USER_SITE WHERE user_id = ?""", (user_id, ))
         count = self.cur.fetchone()[0]
         return count
+    
+    def set_default_password_preferences(self):
+        self.cur.execute("""INSERT INTO PASSWORD_PREFERENCES DEFAULT VALUES""")
+        preference_id = self.cur.lastrowid
+        self.conn.commit()
+        return preference_id
 
-    def register_site(self, user_id, site_url, site_username, site_password):
-        site_id = self.count_registered_sites(user_id)
-        encrypted_site_url, encrypted_site_username, encrypted_site_password = self.encrypt_data(user_id, [site_url, site_username, site_password])
-        self.cur.execute("""INSERT INTO USER_SITE (user_id, site_id, site_url, site_username, site_password, preference_id)
-                        VALUES(?,?,?,?,?,?)""",
-                        (user_id, site_id, encrypted_site_url, encrypted_site_username, encrypted_site_password, None))
+    def update_password_preferences(self, user_id, site_url, preferences):
+        site_id = self.get_site_id(user_id, site_url)
+        preference_id = self.get_preference_id(user_id, site_id)
+        max_length = preferences["max_length"]
+        include = preferences["include"]
+        special_allowed = preferences["special_allowed"]
+        start = preferences["start"]
+        special_allowed_start = preferences["special_allowed_start"]
+        self.cur.execute("""UPDATE PASSWORD_PREFERENCES
+                         SET max_length = ?, include_upper = ?, include_lower = ?, include_num = ?, include_special = ?, special_allowed = ?,
+                         can_start_with_upper = ?, can_start_with_lower = ?, can_start_with_num = ?, can_start_with_special = ?, special_allowed_start = ?
+                         WHERE preferences_id = ?""",
+                         (max_length, include["Upper"], include["Lower"], include["Number"], include["Special"], special_allowed,
+                         start["Upper"], start["Lower"], start["Number"], start["Special"], special_allowed_start, preference_id))
 
         self.conn.commit()
 
+    def get_password_preferences(self, user_id, site_url):
+        site_id = self.get_site_id(user_id, site_url)
+        preference_id = self.get_preference_id(user_id, site_id)
+        self.cur.execute("""SELECT max_length, include_upper, include_lower, include_num, include_special, special_allowed,
+                         can_start_with_upper, can_start_with_lower, can_start_with_num, can_start_with_special, special_allowed_start
+                         FROM PASSWORD_PREFERENCES WHERE preferences_id = ?""",
+                         (preference_id, ))
+        
+        preferences_lst = self.cur.fetchone()
+        preferences = {}
+        preferences["max_length"] = preferences_lst[0]
+        preferences["include"] = {"Upper" : preferences_lst[1], "Lower" : preferences_lst[2], "Number" : preferences_lst[3], "Special" : preferences_lst[4]}
+        preferences["special_allowed"] = preferences_lst[5]
+        preferences["start"] = {"Upper" : preferences_lst[6], "Lower" : preferences_lst[7], "Number" : preferences_lst[8], "Special" : preferences_lst[9]}
+        preferences["special_allowed_start"] = preferences_lst[10]
+        return preferences
+
+
+    def register_site(self, user_id, site_url, site_username, site_password, password_preferences = None):
+        site_id = self.count_registered_sites(user_id)
+        preference_id = self.set_default_password_preferences()
+        encrypted_site_url, encrypted_site_username, encrypted_site_password = self.encrypt_data(user_id, [site_url, site_username, site_password])
+        self.cur.execute("""INSERT INTO USER_SITE (user_id, site_id, site_url, site_username, site_password, preference_id)
+                        VALUES(?,?,?,?,?,?)""",
+                        (user_id, site_id, encrypted_site_url, encrypted_site_username, encrypted_site_password, preference_id))
+        
+        if password_preferences is not None:
+            self.update_password_preferences(user_id, site_url, password_preferences)
+
+        self.conn.commit()
+
+    def get_preference_id(self, user_id, site_id):
+        self.cur.execute("""SELECT preference_id FROM USER_SITE WHERE user_id = ? AND site_id = ?""",
+                         (user_id, site_id))
+        preference_id = self.cur.fetchone()[0]
+        return preference_id
 
     def change_site_password(self, user_id, site_url, new_site_password):
         site_id = self.get_site_id(user_id, site_url)

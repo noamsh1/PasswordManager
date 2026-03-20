@@ -25,8 +25,11 @@ class LoginWindow(ctk.CTkToplevel):
         password_text = ctk.CTkLabel(self, anchor= "center", text= "Password:", font= ("sans", 25), text_color= "black")
         password_text.place(x= 100, y= 175)
 
-        self.password_entry = ctk.CTkEntry(self, width= 200, height= 30, corner_radius= 5, fg_color= "light gray", border_color= "blue", text_color= "black", font= ("sans", 20))
+        self.password_entry = ctk.CTkEntry(self, width= 200, height= 30, corner_radius= 5, fg_color= "light gray", border_color= "blue", text_color= "black", font= ("sans", 20), show= "•")
         self.password_entry.place(x= 250, y= 175)
+
+        self.show_password_button = login_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Show Password", text_color= "black", border_color= "green", command= self.show_password)
+        self.show_password_button.place(x = 500, y= 175)
 
         self.error_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 25), text_color= "red")
         self.error_text.place(x= 300, y= 350)
@@ -41,6 +44,15 @@ class LoginWindow(ctk.CTkToplevel):
         username = self.username_entry.get()
         password = self.password_entry.get()
         self.app.call_login(username, password)
+
+    def show_password(self):
+        self.password_entry.configure(show= "")
+        self.show_password_button.configure(text= "Hide Password", command= self.hide_password)
+    
+    def hide_password(self):
+        self.password_entry.configure(show= "•")
+        self.show_password_button.configure(text= "Show Password", command= self.show_password)
+
 
     def display_login_error(self, msg):
         self.error_text.configure(text= msg)

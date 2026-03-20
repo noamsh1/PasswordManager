@@ -26,8 +26,11 @@ class SignupWindow(ctk.CTkToplevel):
         password_text = ctk.CTkLabel(self, anchor= "center", text= "Password:", font= ("sans", 25), text_color= "black")
         password_text.place(x= 100, y= 150)
 
-        self.password_entry = ctk.CTkEntry(self, width= 200, height= 30, corner_radius= 5, fg_color= "light gray", border_color= "blue", text_color= "black", font= ("sans", 20))
+        self.password_entry = ctk.CTkEntry(self, width= 200, height= 30, corner_radius= 5, fg_color= "light gray", border_color= "blue", text_color= "black", font= ("sans", 20), show= "•")
         self.password_entry.place(x= 250, y= 150)
+
+        self.show_password_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Show Password", text_color= "black", border_color= "green", command= self.show_password)
+        self.show_password_button.place(x = 500, y= 140)
 
         email_text = ctk.CTkLabel(self, anchor= "center", text= "Email:", font= ("sans", 25), text_color= "black")
         email_text.place(x= 100, y= 200)
@@ -63,6 +66,14 @@ class SignupWindow(ctk.CTkToplevel):
 
     def can_signup(self):
         self.signup_button.configure(state = "normal")
+
+    def show_password(self):
+        self.password_entry.configure(show= "")
+        self.show_password_button.configure(text= "Hide Password", command= self.hide_password)
+    
+    def hide_password(self):
+        self.password_entry.configure(show= "•")
+        self.show_password_button.configure(text= "Show Password", command= self.show_password)
 
     def call_signup(self):
         username = self.username_entry.get()

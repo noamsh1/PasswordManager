@@ -6,7 +6,9 @@ from auth_select_window import AuthSelectWindow
 from code_login_window import CodeLoginWindow
 from voice_recording_window import VoiceRecordingWindow
 from site_registration_window import SiteRegistrationWindow
+from password_preferences_window import PasswordPreferencesWindow
 from site_info_window import SiteInfoWindow
+from change_password_window import ChangePasswordWindow
 from CTkListbox import *
 from client_status import Status
 
@@ -48,7 +50,11 @@ class UI:
         self.site_info_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "View site info", text_color= "black", border_color= "green", state= "disabled", command= self.show_selected_site_info)
         self.site_info_window = None
 
-        self.change_password_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Change site password", text_color= "black", border_color= "green", state= "disabled", command= self.call_change_password)
+        self.change_password_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Change site password", text_color= "black", border_color= "green", state= "disabled", command= self.initiate_change_password_window)
+        self.change_password_window = None
+
+        # self.update_password_preferences_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Update password preferences", text_color= "black", border_color= "green", state= "disabled", command= self.get_preferences_and_initiate_window)
+        self.password_preferences_window = None
 
     def run(self):
         self.window.mainloop()
@@ -91,7 +97,6 @@ class UI:
         self.signup_button.place_forget()
         if self.client.status == Status.SIGNING_IN:
             self.setup_user(username)
-            self.client.change_status(Status.NORMAL)
         elif self.client.status == Status.LOGGING_IN:
             self.run_auth_select_window()
 
@@ -197,18 +202,21 @@ class UI:
         self.register_site_button.place(x= 150, y= 150)
         self.site_info_button.place(x= 350, y= 150)
         self.change_password_button.place(x= 550, y= 150)
+        # self.update_password_preferences_button.place(x= 750, y= 150)
 
         self.load_registered_sites()
         self.registered_sites_list.place(x= 100, y= 250)
+        self.client.change_status(Status.NORMAL)
 
     def run_site_registration_window(self):
         if self.site_registration_window is None or not self.site_registration_window.winfo_exists():
             self.site_registration_window = SiteRegistrationWindow(self)
+            self.client.change_status(Status.REGISTERING_SITE)
         else:
             self.site_registration_window.focus()
 
-    def call_register_site(self, site_url, site_username):
-        self.client.register_site(site_url, site_username)
+    def call_register_site(self, site_url, site_username, password_preferences):
+        self.client.register_site(site_url, site_username, password_preferences)
 
     def display_registration_error(self, msg):
         self.site_registration_window.display_registration_error(msg)
@@ -218,6 +226,24 @@ class UI:
         self.load_registered_sites()
         if copy_password:
             self.copy_to_clipboard(password)
+        self.client.change_status(Status.NORMAL)
+
+    def run_password_preferences_window(self, preferences = None, site_url = None):
+        if self.password_preferences_window is None or not self.password_preferences_window.winfo_exists():
+            self.password_preferences_window = PasswordPreferencesWindow(self, preferences, site_url)
+            self.password_preferences_window.focus()
+            self.password_preferences_window.lift()
+        else:
+            self.password_preferences_window.focus()
+            self.password_preferences_window.lift()
+
+    def save_password_preferences(self, preferences, site_url):
+        if self.client.status == Status.REGISTERING_SITE:
+            self.site_registration_window.preferences = preferences
+            self.password_preferences_window.close_window()
+        elif self.client.status == Status.NORMAL:
+            self.call_update_password_preferences(site_url, preferences)
+            self.password_preferences_window.close_window()
 
     def load_registered_sites(self):
         self.registered_sites_list.delete("all")
@@ -228,6 +254,7 @@ class UI:
     def enable_site_buttons(self, site):
         self.site_info_button.configure(state= "normal")
         self.change_password_button.configure(state= "normal")
+        # self.update_password_preferences_button.configure(state= "normal")
 
 
     def show_selected_site_info(self):
@@ -244,10 +271,29 @@ class UI:
         else:
             self.site_info_window.focus()
 
-    def call_change_password(self):
+    def initiate_change_password_window(self):
         site_url = self.registered_sites_list.get()
+        site_username, site_password = self.call_site_info(site_url)
+        self.run_change_site_password_window(site_url, site_username)
+        
+    def run_change_site_password_window(self, site_url, site_username):
+        if self.change_password_window is None or not self.change_password_window.winfo_exists():
+            self.change_password_window = ChangePasswordWindow(self, site_url, site_username)
+        else:
+            self.change_password_window.focus()
+
+    def call_change_site_password(self, site_url):
         generated_password = self.client.change_password(site_url)
-        self.copy_to_clipboard(generated_password)
+        should_copy_password = self.change_password_window.close_window()
+        if should_copy_password:
+            self.copy_to_clipboard(generated_password)
+
+    def get_preferences_and_initiate_window(self, site_url):
+        password_preferences = self.client.get_password_preferences(site_url)
+        self.run_password_preferences_window(password_preferences, site_url)
+    
+    def call_update_password_preferences(self, site_url, preferences):
+        self.client.update_password_preferences(site_url, preferences)
 
     def copy_to_clipboard(self, text):
         self.window.clipboard_clear()

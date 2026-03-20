@@ -36,18 +36,29 @@ class SiteRegistrationWindow(ctk.CTkToplevel):
 
         self.copy_password_checkbox = ctk.CTkCheckBox(self, width = 50, height= 50, corner_radius= 2, border_color= "blue", checkmark_color= "dark green", text= "Copy password after registration", font= ("sans", 18))
         self.copy_password_checkbox.select()
-        self.copy_password_checkbox.place(x= 100, y= 230)
+        self.copy_password_checkbox.place(x= 375, y= 230)
 
-        self.grab_set() 
+        self.preferences = None
+
+        self.change_preferences_button = ctk.CTkButton(self, width= 200, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Change Password Generation Preferences", text_color= "black", border_color= "green", command= self.call_password_preferences_window)
+        self.change_preferences_button.place(x = 100, y = 230)
+
+        self.grab_set()
+
+
+    def call_password_preferences_window(self):
+        self.app.run_password_preferences_window(self.preferences)
+
 
     def call_register_site(self):
         site_url = self.site_url_entry.get()
         site_username = self.site_username_entry.get()
-        self.app.call_register_site(site_url, site_username)
+        self.app.call_register_site(site_url, site_username, self.preferences)
 
     def display_registration_error(self, msg):
         self.error_text.configure(text= msg)
 
     def close_window(self):
+        copy_password = self.copy_password_checkbox.get()
         self.destroy()
-        return self.copy_password_checkbox.get()
+        return copy_password

@@ -1,6 +1,7 @@
 import sys
 import os
 import base64
+import json
 from client_protocol_handler import ClientProtocolHandler, DATA_DELIMITER
 from client_conn_manager import ClientConnectionManager, DEFAULT_SERVER_IP
 from ui import UI
@@ -141,14 +142,35 @@ class Client:
             self.ui.signature_extraction_error()
 
 
-    def register_site(self, site_url, site_username):
-        self.build_and_send_message(self.protocol_handler.client_messages["register_site_msg"], f"{site_url}{DATA_DELIMITER}{site_username}")
+    def register_site(self, site_url, site_username, password_preferences):
+        if password_preferences is not None:
+            preferences = json.dumps(password_preferences)
+        else:
+            preferences = ""
+        self.build_and_send_message(self.protocol_handler.client_messages["register_site_msg"], f"{site_url}{DATA_DELIMITER}{site_username}{DATA_DELIMITER}{preferences}")
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["registration_ok_msg"]:
             self.ui.registration_succesful(data)
-            print(f"registration succesful. Password: {data}")
         elif cmd == self.protocol_handler.server_messages["already_registered_msg"]:
             self.ui.display_registration_error("site already registered")
+
+    def get_password_preferences(self, site_url):
+        self.build_and_send_message(self.protocol_handler.client_messages["get_preferences_msg"], f"{site_url}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
+            print("site not registered")
+        elif cmd == self.protocol_handler.server_messages["your_preferences_msg"]:
+            password_preferences = json.loads(data)
+            return password_preferences
+
+    def update_password_preferences(self, site_url, preferences):
+        preferences_json = json.dumps(preferences)
+        self.build_and_send_message(self.protocol_handler.client_messages["save_preferences_msg"], f"{site_url}{DATA_DELIMITER}{preferences_json}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
+            print("site not registered")
+        elif cmd == self.protocol_handler.server_messages["preferences_saved_msg"]:
+            print(f"Password preferences for {site_url} saved")
 
     def get_registered_sites(self):
         self.build_and_send_message(self.protocol_handler.client_messages["registered_sites_msg"], "")
@@ -173,7 +195,7 @@ class Client:
         if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
             print("site not registered")
         elif cmd == self.protocol_handler.server_messages["change_ok_msg"]:
-            print(f"Site password updated. New password: {data}")
+            return data
 
     def build_and_send_message(self, cmd, data):
         msg = self.protocol_handler.build_message(cmd, data)

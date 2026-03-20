@@ -2,12 +2,13 @@ from server_protocol_handler import ServerProtocolHandler, DATA_DELIMITER
 from server_conn_manager import ServerConnectionManager
 from user_manager import UserManager
 from database import DataBase
-from password_handler import PasswordHandler
+from password_handler import PasswordHandler, DEFAULT_SETTINGS
 from email_manager import EmailManager, EMAIL_CODE_EXPIRATION_TIME
 from voice_authenticator import VoiceAuthenticator
 import uuid
 import datetime
 import base64
+import json
 
 class Server:
 
@@ -71,6 +72,10 @@ class Server:
             self.handle_register_site_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["registered_sites_msg"]:
             self.handle_registered_sites_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["get_preferences_msg"]:
+            self.handle_get_preferences_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["save_preferences_msg"]:
+            self.handle_save_preferences_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["site_info_msg"]:
             self.handle_site_info_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["change_password_msg"]:
@@ -168,17 +173,44 @@ class Server:
         else:
             self.build_and_queue_message(conn, "voice_not_verified_msg", "")
 
+    def handle_save_preferences_message(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        site_url = data_list[0]
+        preferences_json = data_list[1]
+        password_preferences = json.loads(preferences_json)
+        user_id = self.user_manager.logged_users[conn]
+        if not self.db_manager.does_site_exist(user_id, site_url):
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+        else:
+            self.db_manager.update_password_preferences(user_id, site_url, password_preferences)
+            self.build_and_queue_message(conn, "preferences_saved_msg", "")
+
+    def handle_get_preferences_message(self, conn, data):
+        user_id = self.user_manager.logged_users[conn]
+        if not self.db_manager.does_site_exist(user_id, data):
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+        else:
+            preferences = self.db_manager.get_password_preferences(user_id, data)
+            preferences_json = json.dumps(preferences)
+            self.build_and_queue_message(conn, "your_preferences_msg", preferences_json)
+
+
     def handle_register_site_message(self, conn, data):
         data_list = self.protocol_handler.split_data(data)
         site_url = data_list[0]
         site_username = data_list[1]
         user_id = self.user_manager.logged_users[conn]
-        
+
         if self.db_manager.does_site_exist(user_id, site_url):
             self.build_and_queue_message(conn, "already_registered_msg", "")
         else:
-            generated_password = PasswordHandler.generate_password(12)
-            self.db_manager.register_site(user_id, site_url, site_username, generated_password)
+            if data_list[2] != "":
+                password_preferences = json.loads(data_list[2])
+                generated_password = PasswordHandler.generate_password(password_preferences)
+            else:
+                password_preferences = None
+                generated_password = PasswordHandler.generate_password(DEFAULT_SETTINGS)
+            self.db_manager.register_site(user_id, site_url, site_username, generated_password, password_preferences)
             self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
 
         # if site_url in self.user_manager.user_dict[username].registered_sites.keys():
@@ -218,7 +250,8 @@ class Server:
         user_id = self.user_manager.logged_users[conn]
 
         if self.db_manager.does_site_exist(user_id, site_url):
-            generated_password = PasswordHandler.generate_password(12)
+            password_preference = self.db_manager.get_password_preferences(user_id, site_url)
+            generated_password = PasswordHandler.generate_password(password_preference)
             self.db_manager.change_site_password(user_id, site_url, generated_password)
             self.build_and_queue_message(conn, "change_ok_msg", generated_password)
         else:

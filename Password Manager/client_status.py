@@ -4,3 +4,4 @@ class Status(Enum):
     NORMAL = 1
     SIGNING_IN = 2
     LOGGING_IN = 3
+    REGISTERING_SITE = 4
