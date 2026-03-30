@@ -26,6 +26,8 @@ class Client:
         self.client_email = ""
         self.voice_auth_setup = False
         self.bin_voice_signature = None
+        self.are_questions_setup = False
+        self.chosen_questions_dict = {}
         self.status = Status.NORMAL
 
     def get_server_ip(self):
@@ -49,8 +51,12 @@ class Client:
             voice_signature = base64.b64encode(self.bin_voice_signature).decode()
         else:
             voice_signature = ""
-        print(voice_signature)
-        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}{DATA_DELIMITER}{voice_signature}"
+        if self.are_questions_setup:
+            questions_str = json.dumps(self.chosen_questions_dict)
+        else:
+            self.ui.display_signup_error("Security questions are not set")
+            return
+        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}{DATA_DELIMITER}{voice_signature}{DATA_DELIMITER}{questions_str}"
         self.build_and_send_message(self.protocol_handler.client_messages["signup_msg"], msg_data)
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["user_exists_msg"]:
@@ -74,6 +80,43 @@ class Client:
         elif cmd == self.protocol_handler.server_messages["incorrect_password_msg"]:
             self.ui.display_login_error("Password is incorrect")
 
+    def get_security_questions_list(self):
+        self.build_and_send_message(self.protocol_handler.client_messages["security_questions_msg"], "")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["security_questions_list_msg"]:
+            security_questions_list = data.split(DATA_DELIMITER)
+            return security_questions_list
+        
+    def setup_security_questions(self, chosen_questions_dict):
+        self.chosen_questions_dict = chosen_questions_dict
+        self.are_questions_setup = True
+        self.ui.questions_setup_successful()
+
+    def get_user_security_questions(self, username):
+        self.build_and_send_message(self.protocol_handler.client_messages["my_security_questions_msg"], username)
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["your_security_questions_msg"]:
+            user_security_questions = data.split(DATA_DELIMITER)
+            self.username = username
+            self.ui.run_security_questions_auth_window(user_security_questions)
+        elif cmd == self.protocol_handler.server_messages["username_invalid_msg"]:
+            self.ui.display_login_error("Username does not exist")
+
+    def check_security_answers(self, answers):
+        answers_str = DATA_DELIMITER.join(answers)
+        self.build_and_send_message(self.protocol_handler.client_messages["check_security_answers_msg"], f"{self.username}{DATA_DELIMITER}{answers_str}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["security_answers_correct_msg"]:
+            self.ui.security_answers_correct()
+        elif cmd == self.protocol_handler.server_messages["security_answers_incorrect_msg"]:
+            self.ui.security_answers_incorrect()
+
+    def reset_password(self, new_password):
+        self.build_and_send_message(self.protocol_handler.client_messages["reset_password_msg"], f"{self.username}{DATA_DELIMITER}{new_password}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["reset_ok_msg"]:
+            self.ui.password_reset_successful(self.username)
+
     def code_login(self, code):
         self.build_and_send_message(self.protocol_handler.client_messages["code_login_msg"], code)
         cmd, data = self.receive_and_parse_message()
@@ -81,7 +124,7 @@ class Client:
             self.is_email_verified = True
             if self.status == Status.SIGNING_IN:
                 self.ui.signup_code_correct()
-            elif self.status == Status.LOGGING_IN:
+            elif self.status == Status.LOGGING_IN or self.status == Status.RECOVERING_PASSWORD:
                 self.ui.login_code_correct()
         elif cmd == self.protocol_handler.server_messages["code_incorrect_msg"]:
             self.ui.code_incorrect()

@@ -7,6 +7,17 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
 DB_PATH = r"C:\Users\noams\OneDrive\Databases\PasswordManager.db"
+SECURITY_QUESTIONS_LIST = ["What is the name of your grandmother from your father's side?",
+                           "What was the house number of the house you lived in as a child? (digits)",
+                           "What was the make and model of the first-ever mobile phone you owned?",
+                           "What was the name of the first school you ever attended?",
+                           "In what city did you have your first-ever job?",
+                           "What was the name of the band performing in the first concert you ever attended?",
+                           "What was the make and model of your first car?",
+                           "What is the name of your oldest cousin?",
+                           "What was the name of the hospital where you were born?",
+                           "What was the name of the first company you ever worked for?",
+                          ]
 
 class DataBase:
 
@@ -37,6 +48,16 @@ class DataBase:
                             user_dk BLOB NOT NULL UNIQUE,
                             key_salt BLOB NOT NULL,
                             voice_signature BLOB,
+                            question_id_1 INTEGER NOT NULL,
+                            answer_1 BLOB NOT NULL,
+                            question_id_2 INTEGER NOT NULL,
+                            answer_2 BLOB NOT NULL,
+                            question_id_3 INTEGER NOT NULL,
+                            answer_3 BLOB NOT NULL,
+                            answers_salt BLOB NOT NULL,
+                            FOREIGN KEY("question_id_1") REFERENCES "SECURITY_QUESTIONS"("question_id"),
+                            FOREIGN KEY("question_id_2") REFERENCES "SECURITY_QUESTIONS"("question_id"),
+                            FOREIGN KEY("question_id_3") REFERENCES "SECURITY_QUESTIONS"("question_id"),
                             PRIMARY KEY("user_id" AUTOINCREMENT)
                         )""")
         
@@ -69,6 +90,16 @@ class DataBase:
                             FOREIGN KEY("preference_id") REFERENCES "PASSWORD_PREFERENCES"("preferences_id"),
                             FOREIGN KEY("user_id") REFERENCES "USERS"("user_id")
                         )""")
+        
+        # create SECURITY_QUESTIONS table
+        self.cur.execute("""CREATE TABLE "SECURITY_QUESTIONS" (
+                            "question_id" INTEGER NOT NULL,
+                            "question" TEXT NOT NULL,
+                            PRIMARY KEY("question_id" AUTOINCREMENT)
+                         )""")
+        
+        for question in SECURITY_QUESTIONS_LIST:
+            self.cur.execute("""INSERT INTO SECURITY_QUESTIONS (question) VALUES(?)""", (question, ))
 
         self.conn.commit()
 
@@ -84,7 +115,7 @@ class DataBase:
     def encrypt_data(self, user_id, data):
         self.cur.execute("""SELECT user_dk FROM USERS WHERE user_id = ?""", (user_id, ))
         encrypted_dk = self.cur.fetchone()[0]
-        dk_encryption_key = self.users_keys[user_id]
+        dk_encryption_key = self.get_dk_encryption_key(user_id)
         f = Fernet(dk_encryption_key)
         dk = f.decrypt(encrypted_dk)
         data_f = Fernet(dk)
@@ -98,7 +129,7 @@ class DataBase:
     def decrypt_data(self, user_id, data):
         self.cur.execute("""SELECT user_dk FROM USERS WHERE user_id = ?""", (user_id, ))
         encrypted_dk = self.cur.fetchone()[0]
-        dk_encryption_key = self.users_keys[user_id]
+        dk_encryption_key = self.get_dk_encryption_key(user_id)
         f = Fernet(dk_encryption_key)
         dk = f.decrypt(encrypted_dk)
         data_f = Fernet(dk)
@@ -109,8 +140,23 @@ class DataBase:
             except:
                 decrypted_data.append(data_f.decrypt(i))
         return decrypted_data
+    
+    def create_dk_encryption_key(self, username, password_hex, key_salt):
+        raw_key = self.derive_key((username + password_hex).encode(), key_salt)
+        dk_encryption_key = base64.urlsafe_b64encode(raw_key)
+        return dk_encryption_key
+    
+    def get_dk_encryption_key(self, user_id):
+        dk_encryption_key = self.users_keys.get(user_id)
+        if dk_encryption_key is None:
+            self.cur.execute("""SELECT username, password, key_salt FROM USERS WHERE user_id = ?""", (user_id, ))
+            username, password_hex, key_salt = self.cur.fetchone()
+            dk_encryption_key = self.create_dk_encryption_key(username, password_hex, key_salt)
+            self.users_keys[user_id] = dk_encryption_key
+        return dk_encryption_key
 
-    def user_signup(self, username, password, email, phone_number, voice_signature):
+
+    def user_signup(self, username, password, email, phone_number, voice_signature, questions_dict):
         try:
             random_password_salt = os.urandom(32)
             salted_password = random_password_salt + password.encode()
@@ -124,14 +170,25 @@ class DataBase:
             encrypted_voice_signature = dk_f.encrypt(voice_signature)
 
             random_key_salt = os.urandom(16)
-            raw_key = self.derive_key((username + password_hex).encode(), random_key_salt)
-            dk_encryption_key = base64.urlsafe_b64encode(raw_key)
+            dk_encryption_key = self.create_dk_encryption_key(username, password_hex, random_key_salt)
             
             f = Fernet(dk_encryption_key)
             encrypted_user_dk = f.encrypt(user_dk)
-            self.cur.execute("""INSERT INTO USERS (username, password, password_salt, email, phone_number, user_dk, key_salt, voice_signature)
-                            VALUES(?,?,?,?,?,?,?,?)""", 
-                            (username, password_hex, random_password_salt, encrypted_email, encrypted_phone_number, encrypted_user_dk, random_key_salt, encrypted_voice_signature))
+
+            q_id_1, q_id_2, q_id_3 = questions_dict.keys()
+            answer_1 = questions_dict[q_id_1]
+            answer_2 = questions_dict[q_id_2]
+            answer_3 = questions_dict[q_id_3]
+            answers_salt = os.urandom(32)
+            hashed_answer_1 = hashlib.sha256(answer_1.encode() + answers_salt).hexdigest()
+            hashed_answer_2 = hashlib.sha256(answer_2.encode() + answers_salt).hexdigest()
+            hashed_answer_3 = hashlib.sha256(answer_3.encode() + answers_salt).hexdigest()
+            self.cur.execute("""INSERT INTO USERS 
+                             (username, password, password_salt, email, phone_number, user_dk, key_salt, voice_signature, 
+                             question_id_1, answer_1, question_id_2, answer_2, question_id_3, answer_3, answers_salt)
+                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                            (username, password_hex, random_password_salt, encrypted_email, encrypted_phone_number, encrypted_user_dk, random_key_salt, encrypted_voice_signature,
+                             q_id_1, hashed_answer_1, q_id_2, hashed_answer_2, q_id_3, hashed_answer_3, answers_salt))
         except sqlite3.IntegrityError as e:
             return None
         except AttributeError as e:
@@ -148,6 +205,7 @@ class DataBase:
         self.cur.execute("""SELECT EXISTS(SELECT 1 FROM USERS WHERE username = ? LIMIT 1)""", (username, ))
         result = bool(self.cur.fetchone()[0])
         return result
+
     
     def user_login(self, username, password):
         self.cur.execute("""SELECT password, user_id, password_salt, key_salt FROM USERS WHERE username = ?""", (username, ))
@@ -162,8 +220,7 @@ class DataBase:
         
 
         if user_password == password_hex:
-            raw_key = self.derive_key((username + password_hex).encode(), key_salt)
-            dk_encryption_key = base64.urlsafe_b64encode(raw_key)
+            dk_encryption_key = self.create_dk_encryption_key(username, password_hex, key_salt)
             self.users_keys[user_id] = dk_encryption_key
             return user_id
         
@@ -175,21 +232,89 @@ class DataBase:
         decrypted_email = self.decrypt_data(user_id, [email])[0]
         return decrypted_email
     
+    def get_user_phone_number(self, username):
+        self.cur.execute("""SELECT user_id, phone_number FROM USERS WHERE username = ?""", (username, ))
+        user_id, phone_num = self.cur.fetchone()
+        decrypted_phone_num = self.decrypt_data(user_id, [phone_num])[0]
+        return decrypted_phone_num
+    
     def get_voice_signature(self, username):
         self.cur.execute("""SELECT user_id, voice_signature FROM USERS WHERE username = ?""", (username, ))
         user_id, voice_signature = self.cur.fetchone()
         decrypted_voice_signature = self.decrypt_data(user_id, [voice_signature])[0]
         return decrypted_voice_signature
+    
+    def get_security_questions_list(self):
+        self.cur.execute("""SELECT question FROM SECURITY_QUESTIONS""")
+        security_questions_list = [i[0] for i in self.cur.fetchall()]
+        return security_questions_list
+    
+    def get_user_security_questions(self, username):
+        self.cur.execute("""SELECT question_id_1, question_id_2, question_id_3 FROM USERS WHERE username = ?""", (username, ))
+        q_id_1, q_id_2, q_id_3 = self.cur.fetchone()
+        self.cur.execute("""SELECT question FROM SECURITY_QUESTIONS WHERE question_id IN (?,?,?)""", (q_id_1, q_id_2, q_id_3))
+        user_questions_list = [row[0] for row in self.cur.fetchall()]
+        return user_questions_list
+    
+
+    def check_user_security_answers(self, username, answers_list):
+        self.cur.execute("""SELECT answer_1, answer_2, answer_3, answers_salt FROM USERS WHERE username = ?""", (username, ))
+        *user_answers_list, answers_salt = self.cur.fetchone()
+        for i in range(len(user_answers_list)):
+            answer = answers_list[i]
+            hashed_answer = hashlib.sha256(answer.encode() + answers_salt).hexdigest()
+            if hashed_answer != user_answers_list[i]:
+                return False
+        return True
+
+
+    def reset_user_password(self, username, new_password):
+        self.cur.execute("""SELECT password, password_salt, user_id, key_salt, user_dk FROM USERS WHERE username = ?""", (username, ))
+        user_password, password_salt, user_id, key_salt, user_dk = self.cur.fetchone()
+
+        dk_encryption_key = self.create_dk_encryption_key(username, user_password, key_salt)
+
+        f = Fernet(dk_encryption_key)
+        decrypted_user_dk = f.decrypt(user_dk)
+
+
+        new_salted_password = password_salt + new_password.encode()
+        new_hashed_password = hashlib.sha256(new_salted_password)
+        new_password_hex = new_hashed_password.hexdigest()
+
+        new_dk_encryption_key = self.create_dk_encryption_key(username, new_password_hex, key_salt)
+
+        new_f = Fernet(new_dk_encryption_key)
+        reencrypted_user_dk = new_f.encrypt(decrypted_user_dk)
+
+        self.cur.execute("""UPDATE USERS
+                         SET password = ?, user_dk = ?
+                         WHERE user_id = ?""",
+                         (new_password_hex, reencrypted_user_dk, user_id))
+        
+        self.conn.commit()
+        
+        self.users_keys[user_id] = new_dk_encryption_key
+
+        return user_id
+
+        # user_email = self.get_user_email(username)
+        # voice_signature = self.get_voice_signature(username)
+
+        # site_urls = self.get_registered_sites(user_id)
+
+        # user_site_data = {}
+        # for site_url in site_urls:
+        #     site_id = self.get_site_id(user_id, site_url)
+        #     site_username, site_password = self.get_site_info(user_id, site_url)
+        #     user_site_data[site_id] = (site_url, site_username, site_password)
+
 
 
     def does_site_exist(self, user_id, site_url):
         registered_sites = self.get_registered_sites(user_id)
         return site_url in registered_sites
-        # encrypted_site_url = self.encrypt_data(user_id, [site_url])[0]
-        # self.cur.execute("""SELECT EXISTS(SELECT 1 FROM USER_SITE WHERE user_id = ? AND site_url = ? LIMIT 1)""",
-        #                  (user_id, encrypted_site_url))
-        # result = bool(self.cur.fetchone()[0])
-        # return result
+
 
     def get_site_id(self, user_id, site_url):
         self.cur.execute("""SELECT site_id, site_url FROM USER_SITE WHERE user_id = ?""", (user_id, ))

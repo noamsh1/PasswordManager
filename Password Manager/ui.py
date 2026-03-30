@@ -5,6 +5,9 @@ from login_window import LoginWindow
 from auth_select_window import AuthSelectWindow
 from code_login_window import CodeLoginWindow
 from voice_recording_window import VoiceRecordingWindow
+from security_questions_setup_window import SecurityQuestionsSetupWindow
+from security_questions_auth_window import SecurityQuestionsAuthWindow
+from reset_password_window import ResetPasswordWindow
 from site_registration_window import SiteRegistrationWindow
 from password_preferences_window import PasswordPreferencesWindow
 from site_info_window import SiteInfoWindow
@@ -32,6 +35,8 @@ class UI:
 
         self.login_window = None
 
+        self.reset_password_window = None
+
         self.signup_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Signup", text_color= "black", border_color= "green", command= self.run_signup_window)
         self.signup_button.place(x= 700, y= 50)
 
@@ -40,6 +45,7 @@ class UI:
         self.auth_select_window = None
         self.code_login_window = None
         self.voice_recording_window = None
+        self.security_questions_window = None
 
         self.register_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Register Site", text_color= "black", border_color= "green", command= self.run_site_registration_window)
         self.username_text = ctk.CTkLabel(self.window, anchor= "center", text= "", font= ("sans", 25), text_color= "black")
@@ -53,7 +59,6 @@ class UI:
         self.change_password_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Change site password", text_color= "black", border_color= "green", state= "disabled", command= self.initiate_change_password_window)
         self.change_password_window = None
 
-        # self.update_password_preferences_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Update password preferences", text_color= "black", border_color= "green", state= "disabled", command= self.get_preferences_and_initiate_window)
         self.password_preferences_window = None
 
     def run(self):
@@ -93,8 +98,6 @@ class UI:
     def login_succesful(self, username, password):
         if not self.login_window is None:
             self.login_window.close_window()
-        self.login_button.place_forget()
-        self.signup_button.place_forget()
         if self.client.status == Status.SIGNING_IN:
             self.setup_user(username)
         elif self.client.status == Status.LOGGING_IN:
@@ -110,6 +113,56 @@ class UI:
         else:
             self.auth_select_window.focus()
 
+    def run_security_questions_setup_window(self, ):
+        if self.security_questions_window is None or not self.security_questions_window.winfo_exists():
+            security_questions_list = self.call_get_security_questions_list()
+            self.security_questions_window = SecurityQuestionsSetupWindow(self, security_questions_list, self.client.chosen_questions_dict)
+        else:
+            self.security_questions_window.focus()
+
+    def call_get_security_questions_list(self):
+        return self.client.get_security_questions_list()
+    
+    def call_setup_security_questions(self, chosen_questions_dict):
+        self.client.setup_security_questions(chosen_questions_dict)
+
+    def questions_setup_successful(self):
+        self.security_questions_window.close_window()
+        self.signup_window.questions_setup_successful()
+
+    def run_security_questions_auth_window(self, user_security_questions):
+        self.login_window.close_window()
+        if self.security_questions_window is None or not self.security_questions_window.winfo_exists():
+            self.security_questions_window = SecurityQuestionsAuthWindow(self, user_security_questions)
+        else:
+            self.security_questions_window.focus()
+
+    def call_get_user_security_questions(self, username):
+        self.client.get_user_security_questions(username)
+
+    def call_check_security_answers(self, answers):
+        self.client.check_security_answers(answers)
+
+    def security_answers_correct(self):
+        self.client.change_status(Status.RECOVERING_PASSWORD)
+        self.security_questions_window.close_window()
+        self.run_auth_select_window()
+
+    def security_answers_incorrect(self):
+        self.security_questions_window.display_error("One or more answers are incorrect")
+
+    def run_reset_password_window(self):
+        if self.reset_password_window is None or not self.reset_password_window.winfo_exists():
+            self.reset_password_window = ResetPasswordWindow(self)
+        else:
+            self.reset_password_window.focus()
+
+    def call_reset_password(self, new_password):
+        self.client.reset_password(new_password)
+
+    def password_reset_successful(self, username):
+        self.reset_password_window.close_window()
+        self.setup_user(username)
 
     def run_code_login_window(self, client_email):
         if self.code_login_window is None or not self.code_login_window.winfo_exists():
@@ -144,8 +197,7 @@ class UI:
 
     def login_code_correct(self):
         self.code_login_window.close_window()
-        username = self.client.username
-        self.setup_user(username)
+        self.auth_successful()
 
     def code_incorrect(self):
         self.code_login_window.incorrect_code_feedback()
@@ -187,22 +239,30 @@ class UI:
 
     def voice_auth_successful(self):
         self.voice_recording_window.close_window()
-        username = self.client.username
-        self.setup_user(username)
+        self.auth_successful()
 
     def voice_auth_unsuccessful(self):
         self.voice_recording_window.display_error("Voice didn't match. Try recording again.")
+
+    def auth_successful(self):
+        username = self.client.username
+        if self.client.status == Status.LOGGING_IN:
+            self.setup_user(username)
+        elif self.client.status == Status.RECOVERING_PASSWORD:
+            self.run_reset_password_window()
 
     def get_registered_sites(self):
         return self.client.get_registered_sites()
 
     def setup_user(self, username):
+        self.login_button.place_forget()
+        self.signup_button.place_forget()
+
         self.username_text.configure(text= username)
         self.username_text.place(x= 900, y= 75)
         self.register_site_button.place(x= 150, y= 150)
         self.site_info_button.place(x= 350, y= 150)
         self.change_password_button.place(x= 550, y= 150)
-        # self.update_password_preferences_button.place(x= 750, y= 150)
 
         self.load_registered_sites()
         self.registered_sites_list.place(x= 100, y= 250)

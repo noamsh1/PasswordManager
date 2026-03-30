@@ -60,6 +60,9 @@ class SignupWindow(ctk.CTkToplevel):
         self.add_voice_auth_button= ctk.CTkButton(self, width= 200, height= 50, corner_radius= 5, fg_color= "blue", hover_color= "light blue", text= "Add Voice Authentication", text_color= "black", border_color= "blue", command= self.call_run_voice_recording_window)
         self.add_voice_auth_button.place(x = 100, y = 300)
 
+        self.setup_security_questions_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Setup security questions", text_color= "black", border_color= "green", command= self.call_setup_security_questions_window)
+        self.setup_security_questions_button.place(x= 510, y= 240)
+
         self.transient(app.window)
         self.lift()
 
@@ -115,9 +118,17 @@ class SignupWindow(ctk.CTkToplevel):
     def voice_auth_added(self):
         self.add_voice_auth_button.configure(border_color = "green", border_width = 3)
 
+    def call_setup_security_questions_window(self):
+        self.app.run_security_questions_setup_window()
+
+    def questions_setup_successful(self):
+        self.setup_security_questions_button.configure(border_color = "cyan", border_width = 2)
+
     def display_signup_error(self, msg):
         self.error_text.configure(text= msg)
 
 
     def close_window(self):
         self.destroy()
+
+# SignupWindow(None).mainloop()

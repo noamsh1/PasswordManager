@@ -5,3 +5,4 @@ class Status(Enum):
     SIGNING_IN = 2
     LOGGING_IN = 3
     REGISTERING_SITE = 4
+    RECOVERING_PASSWORD = 5

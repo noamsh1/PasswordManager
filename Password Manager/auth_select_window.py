@@ -23,6 +23,8 @@ class AuthSelectWindow(ctk.CTkToplevel):
         self.voice_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with voice", text_color= "black", border_color= "green", command= self.call_voice_auth)
         self.voice_auth_button.place(x = 400, y = 200, anchor=  "center")
 
+        self.grab_set()
+
     def call_email_login(self):
         email = self.app.get_email()
         self.app.request_login_code(email)

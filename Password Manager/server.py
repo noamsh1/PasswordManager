@@ -9,6 +9,7 @@ import uuid
 import datetime
 import base64
 import json
+import hashlib
 
 class Server:
 
@@ -60,6 +61,14 @@ class Server:
             self.handle_login_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["signup_msg"]:
             self.handle_signup_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["security_questions_msg"]:
+            self.handle_security_questions_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["my_security_questions_msg"]:
+            self.handle_my_security_questions_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["check_security_answers_msg"]:
+            self.handle_check_security_answers_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["reset_password_msg"]:
+            self.handle_reset_password_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["my_email_msg"]:
             self.handle_my_email_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["send_code_msg"]:
@@ -113,6 +122,8 @@ class Server:
         email = data_list[2]
         phone_number = data_list[3]
         voice_signature = data_list[4]
+        questions_dict = json.loads(data_list[5])
+
         if voice_signature:
             bin_voice_signature = base64.b64decode(voice_signature)
         else:
@@ -123,7 +134,7 @@ class Server:
             if not PasswordHandler.is_strong_password(password):
                 self.build_and_queue_message(conn, "weak_password_msg", "")
             else:
-                result = self.db_manager.user_signup(username, password, email, phone_number, bin_voice_signature)
+                result = self.db_manager.user_signup(username, password, email, phone_number, bin_voice_signature, questions_dict)
                 if result == None:
                     self.build_and_queue_message(conn, "user_exists_msg", "")
                 else:
@@ -136,6 +147,36 @@ class Server:
         # else:
         #     self.user_manager.add_user(username, password)
         #     self.build_and_queue_message(conn, "signup_ok_msg", "")
+
+
+    def handle_security_questions_msg(self, conn, data):
+        security_questions_list = self.db_manager.get_security_questions_list()
+        security_questions_str = DATA_DELIMITER.join(security_questions_list)
+        self.build_and_queue_message(conn, "security_questions_list_msg", security_questions_str)
+
+    def handle_my_security_questions_msg(self, conn, data):
+        if self.db_manager.does_user_exist(data):
+            user_questions_list = self.db_manager.get_user_security_questions(data)
+            user_questions_str = DATA_DELIMITER.join(user_questions_list)
+            self.build_and_queue_message(conn, "your_security_questions_msg", user_questions_str)
+        else:
+            self.build_and_queue_message(conn, "username_invalid_msg", "")
+
+    def handle_check_security_answers_msg(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        username, *answers_list = data_list
+        if self.db_manager.check_user_security_answers(username, answers_list):
+            self.build_and_queue_message(conn, "security_answers_correct_msg", "")
+        else:  
+            self.build_and_queue_message(conn, "security_answers_incorrect_msg", "")
+
+    def handle_reset_password_msg(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        username = data_list[0]
+        new_password = data_list[1]
+        user_id = self.db_manager.reset_user_password(username, new_password)
+        self.user_manager.logged_users[conn] = user_id
+        self.build_and_queue_message(conn, "reset_ok_msg", "")
 
     def handle_my_email_msg(self, conn, data):
         try:
