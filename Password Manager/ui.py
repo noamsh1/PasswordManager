@@ -51,6 +51,12 @@ class UI:
         self.username_text = ctk.CTkLabel(self.window, anchor= "center", text= "", font= ("sans", 25), text_color= "black")
         self.site_registration_window = None
 
+        self.search_var = ctk.StringVar()
+        self.search_var.trace_add("write", self.load_registered_sites)
+        self.search_box = ctk.CTkEntry(self.window, width = 950, height= 30, corner_radius= 3, placeholder_text= "Search site", textvariable= self.search_var)
+        self.delete_search_button = ctk.CTkButton(self.window, width= 50, height= 30, corner_radius= 3, text= "Delete search", command= lambda: self.search_var.set(""))
+
+        self.curret_site_selection = None
         self.registered_sites_list = CTkListbox(self.window, height= 350, width= 1000, command= self.enable_site_buttons)
 
         self.site_info_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "View site info", text_color= "black", border_color= "green", state= "disabled", command= self.show_selected_site_info)
@@ -265,6 +271,8 @@ class UI:
         self.change_password_button.place(x= 550, y= 150)
 
         self.load_registered_sites()
+        self.search_box.place(x= 100, y= 220)
+        self.delete_search_button.place(x= 1050, y= 220)
         self.registered_sites_list.place(x= 100, y= 250)
         self.client.change_status(Status.NORMAL)
 
@@ -305,16 +313,35 @@ class UI:
             self.call_update_password_preferences(site_url, preferences)
             self.password_preferences_window.close_window()
 
-    def load_registered_sites(self):
+    def load_registered_sites(self, *args):
         self.registered_sites_list.delete("all")
         registered_sites = self.get_registered_sites()
+        found_current_selection = False
         for site_url in registered_sites:
-            self.registered_sites_list.insert("end", site_url)
+            if self.search_var.get() != "":
+                if self.search_var.get().lower() in site_url.lower():
+                    self.registered_sites_list.insert("end", site_url)
+                    if site_url == self.curret_site_selection:
+                        found_current_selection = True
+                        self.registered_sites_list.select(-1)
+            else:
+                self.registered_sites_list.insert("end", site_url)
+                if site_url == self.curret_site_selection:
+                        found_current_selection = True
+                        self.registered_sites_list.select(-1)
+        
+        if not found_current_selection:
+            self.disable_site_buttons()
 
     def enable_site_buttons(self, site):
+        self.curret_site_selection = site
         self.site_info_button.configure(state= "normal")
         self.change_password_button.configure(state= "normal")
-        # self.update_password_preferences_button.configure(state= "normal")
+
+    def disable_site_buttons(self):
+        self.current_site_selection = None
+        self.site_info_button.configure(state= "disabled")
+        self.change_password_button.configure(state= "disabled")
 
 
     def show_selected_site_info(self):
