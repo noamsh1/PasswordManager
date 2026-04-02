@@ -215,8 +215,8 @@ class Client:
         elif cmd == self.protocol_handler.server_messages["preferences_saved_msg"]:
             print(f"Password preferences for {site_url} saved")
 
-    def get_registered_sites(self):
-        self.build_and_send_message(self.protocol_handler.client_messages["registered_sites_msg"], "")
+    def get_registered_sites(self, get_deleted):
+        self.build_and_send_message(self.protocol_handler.client_messages["registered_sites_msg"], f"{get_deleted}")
         cmd, data = self.receive_and_parse_message()
         registered_sites_list = data.split(DATA_DELIMITER) if data != "" else []
         return registered_sites_list
@@ -239,6 +239,22 @@ class Client:
             print("site not registered")
         elif cmd == self.protocol_handler.server_messages["change_ok_msg"]:
             return data
+        
+    def delete_site(self, site_url):
+        self.build_and_send_message(self.protocol_handler.client_messages["delete_site_msg"], site_url)
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
+            print("site not registered")
+        elif cmd == self.protocol_handler.server_messages["site_deleted_msg"]:
+            self.ui.load_registered_sites()
+
+    def recover_site(self, site_url):
+        self.build_and_send_message(self.protocol_handler.client_messages["recover_site_msg"], site_url)
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
+            print("site not registered")
+        elif cmd == self.protocol_handler.server_messages["site_recovered_msg"]:
+            self.ui.site_recovery_successful()
 
     def build_and_send_message(self, cmd, data):
         msg = self.protocol_handler.build_message(cmd, data)

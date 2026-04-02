@@ -12,6 +12,7 @@ from site_registration_window import SiteRegistrationWindow
 from password_preferences_window import PasswordPreferencesWindow
 from site_info_window import SiteInfoWindow
 from change_password_window import ChangePasswordWindow
+from site_recovery_window import SiteRecoveryWindow
 from CTkListbox import *
 from client_status import Status
 
@@ -65,7 +66,12 @@ class UI:
         self.change_password_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Change site password", text_color= "black", border_color= "green", state= "disabled", command= self.initiate_change_password_window)
         self.change_password_window = None
 
+        self.delete_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "dark red", hover_color= "red", text= "Delete site", text_color= "black", border_color= "dark red", state= "disabled", command= self.delete_site)
+
         self.password_preferences_window = None
+
+        self.recover_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Recover site", text_color= "black", border_color= "green", command= self.run_site_recovery_window)
+        self.site_recovery_window = None
 
     def run(self):
         self.window.mainloop()
@@ -258,7 +264,10 @@ class UI:
             self.run_reset_password_window()
 
     def get_registered_sites(self):
-        return self.client.get_registered_sites()
+        return self.client.get_registered_sites(False)
+    
+    def get_deleted_sites(self):
+        return self.client.get_registered_sites(True)
 
     def setup_user(self, username):
         self.login_button.place_forget()
@@ -269,6 +278,8 @@ class UI:
         self.register_site_button.place(x= 150, y= 150)
         self.site_info_button.place(x= 350, y= 150)
         self.change_password_button.place(x= 550, y= 150)
+        self.delete_site_button.place(x= 750, y= 150)
+        self.recover_site_button.place(x= 950, y= 150)
 
         self.load_registered_sites()
         self.search_box.place(x= 100, y= 220)
@@ -337,11 +348,13 @@ class UI:
         self.curret_site_selection = site
         self.site_info_button.configure(state= "normal")
         self.change_password_button.configure(state= "normal")
+        self.delete_site_button.configure(state= "normal")
 
     def disable_site_buttons(self):
         self.current_site_selection = None
         self.site_info_button.configure(state= "disabled")
         self.change_password_button.configure(state= "disabled")
+        self.delete_site_button.configure(state= "disabled")
 
 
     def show_selected_site_info(self):
@@ -381,6 +394,24 @@ class UI:
     
     def call_update_password_preferences(self, site_url, preferences):
         self.client.update_password_preferences(site_url, preferences)
+
+    def delete_site(self):
+        site_url = self.registered_sites_list.get()
+        self.client.delete_site(site_url)
+
+    def run_site_recovery_window(self):
+        deleted_sites = self.get_deleted_sites()
+        if self.site_recovery_window is None or not self.site_recovery_window.winfo_exists():
+            self.site_recovery_window = SiteRecoveryWindow(self, deleted_sites)
+        else:
+            self.site_recovery_window.focus()
+
+    def site_recovery_successful(self):
+        self.site_recovery_window.close_window()
+        self.load_registered_sites()
+
+    def call_recover_site(self, site_url):
+        self.client.recover_site(site_url)
 
     def copy_to_clipboard(self, text):
         self.window.clipboard_clear()

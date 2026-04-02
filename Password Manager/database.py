@@ -86,6 +86,7 @@ class DataBase:
                             "site_username"	BLOB NOT NULL,
                             "site_password"	BLOB NOT NULL,
                             "preference_id"	INTEGER,
+                            "is_deleted" BOOLEAN DEFAULT 0,
                             PRIMARY KEY("user_id","site_id"),
                             FOREIGN KEY("preference_id") REFERENCES "PASSWORD_PREFERENCES"("preferences_id"),
                             FOREIGN KEY("user_id") REFERENCES "USERS"("user_id")
@@ -312,7 +313,11 @@ class DataBase:
 
 
     def does_site_exist(self, user_id, site_url):
-        registered_sites = self.get_registered_sites(user_id)
+        registered_sites = self.get_registered_sites(user_id, False)
+        return site_url in registered_sites
+
+    def does_deleted_site_exist(self, user_id, site_url):
+        registered_sites = self.get_registered_sites(user_id, True)
         return site_url in registered_sites
 
 
@@ -401,8 +406,8 @@ class DataBase:
         self.conn.commit()
 
     
-    def get_registered_sites(self, user_id):
-        self.cur.execute("""SELECT site_url FROM USER_SITE WHERE user_id = ?""", (user_id, ))
+    def get_registered_sites(self, user_id, get_deleted):
+        self.cur.execute("""SELECT site_url FROM USER_SITE WHERE user_id = ? AND is_deleted = ?""", (user_id, int(get_deleted)))
 
         lst = self.cur.fetchall()
         sites = [i[0] for i in lst]
@@ -418,6 +423,24 @@ class DataBase:
         site_info = self.cur.fetchone()
         decrypted_site_info = self.decrypt_data(user_id, site_info)
         return decrypted_site_info
+    
+    def delete_site(self, user_id, site_url):
+        site_id = self.get_site_id(user_id, site_url)
+        self.cur.execute("""UPDATE USER_SITE
+                         SET is_deleted = 1
+                         WHERE user_id = ? AND site_id = ?""",
+                         (user_id, site_id))
+        
+        self.conn.commit()
+
+    def recover_site(self, user_id, site_url):
+        site_id = self.get_site_id(user_id, site_url)
+        self.cur.execute("""UPDATE USER_SITE
+                         SET is_deleted = 0
+                         WHERE user_id = ? AND site_id = ?""",
+                         (user_id, site_id))
+        
+        self.conn.commit()
 
     
     

@@ -37,7 +37,9 @@ PROTOCOL_SERVER = {
     "your_email_msg" : "YOUR_EMAIL",
     "no_email_registered_msg" : "NO_EMAIL_REGISTERED",
     "voice_verified_msg" : "VOICE_VERIFIED",
-    "voice_not_verified_msg" : "VOICE_NOT_VERIFIED"
+    "voice_not_verified_msg" : "VOICE_NOT_VERIFIED",
+    "site_deleted_msg" : "SITE_DELETED",
+    "site_recovered_msg" : "SITE_RECOVERED"
 }
 
 PROTOCOL_CLIENT = {
@@ -56,7 +58,9 @@ PROTOCOL_CLIENT = {
     "code_login_msg" : "CODE_LOGIN",
     "send_code_msg" : "SEND_CODE",
     "my_email_msg" : "MY_EMAIL",
-    "voice_auth_msg" : "VOICE_AUTH"
+    "voice_auth_msg" : "VOICE_AUTH",
+    "delete_site_msg" : "DELETE_SITE",
+    "recover_site_msg" : "RECOVER_SITE"
 }
 
 class ProtocolHandler:

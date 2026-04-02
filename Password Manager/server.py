@@ -89,6 +89,10 @@ class Server:
             self.handle_site_info_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["change_password_msg"]:
             self.handle_change_password_message(conn, data)
+        elif cmd == self.protocol_handler.client_messages["delete_site_msg"]:
+            self.handle_delete_site_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["recover_site_msg"]:
+            self.handle_recover_site_msg(conn, data)
 
 
     def handle_login_message(self, conn, data):
@@ -262,8 +266,11 @@ class Server:
 
     def handle_registered_sites_message(self, conn, data):
         user_id = self.user_manager.logged_users[conn]
-        # registered_sites_list = self.user_manager.user_dict[username].registered_sites.keys()
-        registered_sites_list = self.db_manager.get_registered_sites(user_id)
+        if data == "True":
+            get_deleted_sites = True
+        else:
+            get_deleted_sites = False
+        registered_sites_list = self.db_manager.get_registered_sites(user_id, get_deleted_sites)
         registered_sites_msg = DATA_DELIMITER.join(registered_sites_list)
         self.build_and_queue_message(conn, "your_sites_msg", registered_sites_msg)
         
@@ -304,6 +311,29 @@ class Server:
         # else:
         #     generated_password = self.user_manager.change_password(username, site_url)
         #     self.build_and_queue_message(conn, "change_ok_msg", generated_password)
+
+
+    def handle_delete_site_msg(self, conn, data):
+        site_url = data
+        user_id = self.user_manager.logged_users[conn]
+
+        if self.db_manager.does_site_exist(user_id, site_url):
+            self.db_manager.delete_site(user_id, site_url)
+            self.build_and_queue_message(conn, "site_deleted_msg", "")
+        else:
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+
+
+    def handle_recover_site_msg(self, conn, data):
+        site_url = data
+        user_id = self.user_manager.logged_users[conn]
+
+        if self.db_manager.does_deleted_site_exist(user_id, site_url):
+            self.db_manager.recover_site(user_id, site_url)
+            self.build_and_queue_message(conn, "site_recovered_msg", "")
+        else:
+            self.build_and_queue_message(conn, "not_registered_msg", "")
+
 
     def build_and_queue_message(self, conn, cmd, data):
         msg = self.protocol_handler.build_message(self.protocol_handler.server_messages[cmd], data)

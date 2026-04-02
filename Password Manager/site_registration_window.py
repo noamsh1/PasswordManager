@@ -29,7 +29,7 @@ class SiteRegistrationWindow(ctk.CTkToplevel):
         self.site_username_entry.place(x= 360, y= 175)
 
         self.error_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 25), text_color= "red")
-        self.error_text.place(x= 300, y= 350)
+        self.error_text.place(x= 300, y= 350, anchor= "center")
 
         self.register_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Register", text_color= "black", border_color= "green", command= self.call_register_site)
         self.register_button.place(x = 300, y= 300)
@@ -52,7 +52,13 @@ class SiteRegistrationWindow(ctk.CTkToplevel):
 
     def call_register_site(self):
         site_url = self.site_url_entry.get()
+        if site_url == "":
+            self.display_registration_error("You must enter a site url before registration")
+            return
         site_username = self.site_username_entry.get()
+        if site_username == "":
+            self.display_registration_error("You must enter a username before registration")
+            return
         self.app.call_register_site(site_url, site_username, self.preferences)
 
     def display_registration_error(self, msg):
