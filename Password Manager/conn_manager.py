@@ -2,7 +2,7 @@ import socket
 from cryptography.fernet import Fernet
 
 SERVER_PORT = 5678
-MAX_MESSAGE_LENGTH = 2048
+MAX_MESSAGE_LENGTH = 4096
 
 class ConnectionManager():
     

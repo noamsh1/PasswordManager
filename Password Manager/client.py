@@ -9,6 +9,7 @@ from email_validator import validate_email, EmailNotValidError
 from client_status import Status
 from audio_manager import AudioManager
 from voice_authenticator import VoiceAuthenticator
+from face_recognizer import FaceRecognizer
 
 class Client:
 
@@ -26,8 +27,11 @@ class Client:
         self.client_email = ""
         self.voice_auth_setup = False
         self.bin_voice_signature = None
+        self.face_recognition_setup = False
+        self.bin_face_encoding = None
         self.are_questions_setup = False
         self.chosen_questions_dict = {}
+        self.auth_options = None
         self.status = Status.NORMAL
 
     def get_server_ip(self):
@@ -47,16 +51,27 @@ class Client:
             return True
 
     def signup(self, username, password, email, phone_number):
+        self.auth_options = {}
         if self.bin_voice_signature:
             voice_signature = base64.b64encode(self.bin_voice_signature).decode()
+            self.auth_options["voice_auth"] = True
         else:
             voice_signature = ""
+            self.auth_options["voice_auth"] = False
+
+        if self.bin_face_encoding:
+            face_encoding = base64.b64encode(self.bin_face_encoding).decode()
+            self.auth_options["face_auth"] = True
+        else:
+            face_encoding = ""
+            self.auth_options["face_auth"] = False
+        
         if self.are_questions_setup:
             questions_str = json.dumps(self.chosen_questions_dict)
         else:
             self.ui.display_signup_error("Security questions are not set")
             return
-        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}{DATA_DELIMITER}{voice_signature}{DATA_DELIMITER}{questions_str}"
+        msg_data = f"{username}{DATA_DELIMITER}{password}{DATA_DELIMITER}{email}{DATA_DELIMITER}{phone_number}{DATA_DELIMITER}{voice_signature}{DATA_DELIMITER}{face_encoding}{DATA_DELIMITER}{questions_str}"
         self.build_and_send_message(self.protocol_handler.client_messages["signup_msg"], msg_data)
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["user_exists_msg"]:
@@ -117,6 +132,13 @@ class Client:
         if cmd == self.protocol_handler.server_messages["reset_ok_msg"]:
             self.ui.password_reset_successful(self.username)
 
+    def get_auth_options(self):
+        self.build_and_send_message(self.protocol_handler.client_messages["get_auth_options_msg"], f"{self.username}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["your_auth_options_msg"]:
+            self.auth_options = json.loads(data)
+            return self.auth_options
+
     def code_login(self, code):
         self.build_and_send_message(self.protocol_handler.client_messages["code_login_msg"], code)
         cmd, data = self.receive_and_parse_message()
@@ -166,10 +188,18 @@ class Client:
         self.bin_voice_signature = self.voice_authenticator.calc_voice_signature(self.audio_manager.filename)
         if self.bin_voice_signature is not None:
             self.voice_auth_setup = True
-            self.ui.voice_auth_setup_successful()
-            os.remove(self.audio_manager.filename)
+            if self.status == Status.SIGNING_IN:
+                self.ui.voice_auth_setup_successful()
+            elif self.status == Status.NORMAL:
+                voice_signature = base64.b64encode(self.bin_voice_signature).decode()
+                self.build_and_send_message(self.protocol_handler.client_messages["setup_voice_auth_msg"], voice_signature)
+                cmd, data = self.receive_and_parse_message()
+                if cmd == self.protocol_handler.server_messages["voice_auth_set_msg"]:
+                    self.auth_options["voice_auth"] = True
+                    self.ui.voice_auth_setup_successful()
         else:
             self.ui.signature_extraction_error()
+        os.remove(self.audio_manager.filename)
 
     def voice_auth(self):
         self.bin_voice_signature = self.voice_authenticator.calc_voice_signature(self.audio_manager.filename)
@@ -184,6 +214,43 @@ class Client:
         else:
             self.ui.signature_extraction_error()
 
+    def get_face_encoding(self, rgb_frame):
+        self.bin_face_encoding = FaceRecognizer.get_face_encodings(rgb_frame)
+        if self.bin_face_encoding:
+            if self.status == Status.LOGGING_IN:
+                self.face_recognition()
+            else:
+                self.ui.face_located()
+        else:
+            if self.status != Status.LOGGING_IN:
+                self.ui.no_face_located()
+
+    def setup_face_recognition(self):
+        if self.bin_face_encoding:
+            if self.status == Status.SIGNING_IN:
+                self.ui.face_recognition_setup_successful()
+            elif self.status == Status.NORMAL:
+                face_encoding_str = base64.b64encode(self.bin_face_encoding).decode()
+                self.build_and_send_message(self.protocol_handler.client_messages["setup_face_recognition_msg"], face_encoding_str)
+                cmd, data = self.receive_and_parse_message()
+                if cmd == self.protocol_handler.server_messages["face_recognition_set_msg"]:
+                    self.auth_options["face_auth"] = True
+                    self.ui.face_recognition_setup_successful()
+        else:
+            self.ui.no_face_located()
+
+    def face_recognition(self):
+        if not self.bin_face_encoding:
+            return
+        else:
+            face_encoding_str = base64.b64encode(self.bin_face_encoding).decode()
+        self.build_and_send_message(self.protocol_handler.client_messages["check_face_recognition_msg"], f"{self.username}{DATA_DELIMITER}{face_encoding_str}")
+        cmd, data = self.receive_and_parse_message()
+        if cmd == self.protocol_handler.server_messages["face_matches_msg"]:
+            self.ui.face_recognition_successful()
+        elif cmd == self.protocol_handler.server_messages["face_not_matches_msg"]:
+            self.ui.face_recognition_unsuccessful()
+            
 
     def register_site(self, site_url, site_username, password_preferences):
         if password_preferences is not None:

@@ -1,10 +1,13 @@
 import customtkinter as ctk
 import threading
+from PIL import Image
+from video_manager import VideoManager
 from signup_window import SignupWindow
 from login_window import LoginWindow
 from auth_select_window import AuthSelectWindow
 from code_login_window import CodeLoginWindow
 from voice_recording_window import VoiceRecordingWindow
+from video_capture_window import VideoCaptureWindow
 from security_questions_setup_window import SecurityQuestionsSetupWindow
 from security_questions_auth_window import SecurityQuestionsAuthWindow
 from reset_password_window import ResetPasswordWindow
@@ -13,6 +16,7 @@ from password_preferences_window import PasswordPreferencesWindow
 from site_info_window import SiteInfoWindow
 from change_password_window import ChangePasswordWindow
 from site_recovery_window import SiteRecoveryWindow
+from settings_menu_frame import SettingsMenuFrame
 from CTkListbox import *
 from client_status import Status
 
@@ -46,6 +50,12 @@ class UI:
         self.auth_select_window = None
         self.code_login_window = None
         self.voice_recording_window = None
+
+        self.cap = None
+        self.current_camera_index = -1
+        self.rgb_small_frame = None
+        self.video_capture_window = None
+
         self.security_questions_window = None
 
         self.register_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Register Site", text_color= "black", border_color= "green", command= self.run_site_registration_window)
@@ -72,6 +82,7 @@ class UI:
 
         self.recover_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Recover site", text_color= "black", border_color= "green", command= self.run_site_recovery_window)
         self.site_recovery_window = None
+
 
     def run(self):
         self.window.mainloop()
@@ -119,9 +130,14 @@ class UI:
     def get_email(self):
         return self.client.get_email()
 
+
+    def call_get_auth_options(self):
+        return self.client.get_auth_options()
+
     def run_auth_select_window(self):
         if self.auth_select_window is None or not self.auth_select_window.winfo_exists():
-            self.auth_select_window = AuthSelectWindow(self)
+            auth_options = self.call_get_auth_options()
+            self.auth_select_window = AuthSelectWindow(self, auth_options)
         else:
             self.auth_select_window.focus()
 
@@ -219,11 +235,11 @@ class UI:
 
     def run_voice_recording_window(self):
         if self.voice_recording_window is None or not self.voice_recording_window.winfo_exists():
-            if self.client.status == Status.SIGNING_IN:
-                is_signing_in = True
+            if self.client.status == Status.SIGNING_IN or self.client.status == Status.NORMAL:
+                is_setup = True
             else:
-                is_signing_in = False
-            self.voice_recording_window = VoiceRecordingWindow(self, is_signing_in)
+                is_setup = False
+            self.voice_recording_window = VoiceRecordingWindow(self, is_setup)
             self.voice_recording_window.focus()
             self.voice_recording_window.lift()
         else:
@@ -241,7 +257,10 @@ class UI:
 
     def voice_auth_setup_successful(self):
         self.voice_recording_window.close_window()
-        self.signup_window.voice_auth_added()
+        if self.client.status == Status.SIGNING_IN:
+            self.signup_window.voice_auth_added()
+        elif self.client.status == Status.NORMAL:
+            self.settings_menu.voice_auth_added()
 
     def signature_extraction_error(self):
         self.voice_recording_window.display_error("Could not extract voice signature. Please record again.")
@@ -255,6 +274,79 @@ class UI:
 
     def voice_auth_unsuccessful(self):
         self.voice_recording_window.display_error("Voice didn't match. Try recording again.")
+
+
+    def get_cameras_list(self):
+        return VideoManager.list_cameras()
+    
+
+    def run_video_capture_window(self):
+        if self.video_capture_window is None or not self.video_capture_window.winfo_exists():
+            cameras_list = self.get_cameras_list()
+            if self.client.status == Status.SIGNING_IN or self.client.status == Status.NORMAL:
+                is_setup = True
+            else:
+                is_setup = False
+            self.video_capture_window = VideoCaptureWindow(self, cameras_list, is_setup)
+        else:
+            self.video_capture_window.focus()
+    
+    def start_video_recording(self, camera_index):
+        if self.cap is not None:
+            if self.current_camera_index == camera_index:
+                return
+            else:
+                self.cap.release()
+                self.cap = None
+
+        self.cap = VideoManager.get_cap(camera_index)
+        if self.cap is None:
+            self.video_capture_window.display_camera_error()
+        else:
+            self.current_camera_index = camera_index
+            self.video_capture_window.record_loop()
+            self.video_capture_window.face_recognition_loop()
+
+    def get_frames(self):
+        data = VideoManager.get_frame(self.cap)
+        if data[0]:
+            rgb_mirrored_frame = data[1]
+            self.rgb_small_frame = data[2]
+            if self.video_capture_window is not None:
+                pil_image = Image.fromarray(rgb_mirrored_frame)
+                image = ctk.CTkImage(light_image= pil_image, dark_image= pil_image, size= (640, 480))
+                self.video_capture_window.update_frame(image)
+        else:
+            self.video_capture_window.display_camera_error()
+
+    def call_face_recognition(self):
+        if self.rgb_small_frame is not None:
+            self.client.get_face_encoding(self.rgb_small_frame)
+        else:
+            self.video_capture_window.disable_setup_button()
+    
+    def face_located(self):
+        self.video_capture_window.enable_setup_button()
+
+    def no_face_located(self):
+        self.video_capture_window.disable_setup_button()
+
+    def call_setup_face_recognition(self):
+        self.client.setup_face_recognition()
+
+    def face_recognition_setup_successful(self):
+        self.video_capture_window.close_window()
+        if self.client.status == Status.SIGNING_IN:
+            self.signup_window.face_recognition_added()
+        elif self.client.status == Status.NORMAL:
+            self.settings_menu.face_recognition_added()
+
+    def face_recognition_successful(self):
+        self.video_capture_window.close_window()
+        self.auth_successful()
+
+    def face_recognition_unsuccessful(self):
+        self.video_capture_window.display_face_recognition_error("Face doesn't match.")
 
     def auth_successful(self):
         username = self.client.username
@@ -285,6 +377,13 @@ class UI:
         self.search_box.place(x= 100, y= 220)
         self.delete_search_button.place(x= 1050, y= 220)
         self.registered_sites_list.place(x= 100, y= 250)
+
+        self.settings_menu = SettingsMenuFrame(self, WINDOW_WIDTH, self.client.auth_options, corner_radius = 0)
+        self.settings_menu.place(relx=1.0, rely=0, relheight=1, anchor="nw")
+
+        self.settings_button = ctk.CTkButton(self.window, width= 40, text= "⚙", text_color= "black", fg_color= "transparent", command= self.settings_menu.toggle)
+        self.settings_button.place(x=1150, y=10)
+
         self.client.change_status(Status.NORMAL)
 
     def run_site_registration_window(self):

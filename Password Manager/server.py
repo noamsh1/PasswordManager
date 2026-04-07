@@ -5,6 +5,7 @@ from database import DataBase
 from password_handler import PasswordHandler, DEFAULT_SETTINGS
 from email_manager import EmailManager, EMAIL_CODE_EXPIRATION_TIME
 from voice_authenticator import VoiceAuthenticator
+from face_recognizer import FaceRecognizer
 import uuid
 import datetime
 import base64
@@ -69,6 +70,8 @@ class Server:
             self.handle_check_security_answers_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["reset_password_msg"]:
             self.handle_reset_password_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["get_auth_options_msg"]:
+            self.handle_get_auth_options_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["my_email_msg"]:
             self.handle_my_email_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["send_code_msg"]:
@@ -77,6 +80,12 @@ class Server:
             self.handle_code_login_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["voice_auth_msg"]:
             self.handle_voice_auth_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["check_face_recognition_msg"]:
+            self.handle_check_face_recognition_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["setup_voice_auth_msg"]:
+            self.handle_setup_voice_auth_msg(conn, data)
+        elif cmd == self.protocol_handler.client_messages["setup_face_recognition_msg"]:
+            self.handle_setup_face_recognition_msg(conn, data)
         elif cmd == self.protocol_handler.client_messages["register_site_msg"]:
             self.handle_register_site_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["registered_sites_msg"]:
@@ -126,19 +135,26 @@ class Server:
         email = data_list[2]
         phone_number = data_list[3]
         voice_signature = data_list[4]
-        questions_dict = json.loads(data_list[5])
+        face_encoding = data_list[5]
+        questions_dict = json.loads(data_list[6])
 
-        if voice_signature:
+        if voice_signature != "":
             bin_voice_signature = base64.b64decode(voice_signature)
         else:
             bin_voice_signature = None
+
+        if face_encoding != "":
+            bin_face_encoding = base64.b64decode(face_encoding)
+        else:
+            bin_face_encoding = None
+
         if self.db_manager.does_user_exist(username):
             self.build_and_queue_message(conn, "user_exists_msg", "")
         else:
             if not PasswordHandler.is_strong_password(password):
                 self.build_and_queue_message(conn, "weak_password_msg", "")
             else:
-                result = self.db_manager.user_signup(username, password, email, phone_number, bin_voice_signature, questions_dict)
+                result = self.db_manager.user_signup(username, password, email, phone_number, bin_voice_signature, bin_face_encoding, questions_dict)
                 if result == None:
                     self.build_and_queue_message(conn, "user_exists_msg", "")
                 else:
@@ -182,6 +198,12 @@ class Server:
         self.user_manager.logged_users[conn] = user_id
         self.build_and_queue_message(conn, "reset_ok_msg", "")
 
+    def handle_get_auth_options_msg(self, conn, data):
+        username = data
+        auth_options = self.db_manager.get_user_auth_options(username)
+        auth_options_str = json.dumps(auth_options)
+        self.build_and_queue_message(conn, "your_auth_options_msg", auth_options_str)
+
     def handle_my_email_msg(self, conn, data):
         try:
             user_email = self.db_manager.get_user_email(data)
@@ -212,11 +234,34 @@ class Server:
         login_voice_signature = data_list[1]
         bin_login_voice_signature = base64.b64decode(login_voice_signature)
         bin_stored_voice_signature = self.db_manager.get_voice_signature(username)
-        print(bin_stored_voice_signature)
         if self.voice_authenticator.verify_user(bin_stored_voice_signature, bin_login_voice_signature):
             self.build_and_queue_message(conn, "voice_verified_msg", "")
         else:
             self.build_and_queue_message(conn, "voice_not_verified_msg", "")
+
+    def handle_check_face_recognition_msg(self, conn, data):
+        data_list = self.protocol_handler.split_data(data)
+        username = data_list[0]
+        face_encoding_str = data_list[1]
+        bin_face_encoding = base64.b64decode(face_encoding_str)
+        bin_stored_face_encoding = self.db_manager.get_face_encoding(username)
+        if FaceRecognizer.compare_faces(bin_stored_face_encoding, bin_face_encoding):
+            self.build_and_queue_message(conn, "face_matches_msg", "")
+        else:
+            self.build_and_queue_message(conn, "face_not_matches_msg", "")
+
+
+    def handle_setup_voice_auth_msg(self, conn, data):
+        user_id = self.user_manager.logged_users[conn]
+        bin_voice_signature = base64.b64decode(data)
+        self.db_manager.setup_voice_auth(user_id, bin_voice_signature)
+        self.build_and_queue_message(conn, "voice_auth_set_msg", "")
+
+    def handle_setup_face_recognition_msg(self, conn, data):
+        user_id = self.user_manager.logged_users[conn]
+        bin_face_encoding = base64.b64decode(data)
+        self.db_manager.setup_voice_auth(user_id, bin_face_encoding)
+        self.build_and_queue_message(conn, "face_recognition_set_msg", "")
 
     def handle_save_preferences_message(self, conn, data):
         data_list = self.protocol_handler.split_data(data)

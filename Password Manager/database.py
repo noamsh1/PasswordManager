@@ -48,6 +48,7 @@ class DataBase:
                             user_dk BLOB NOT NULL UNIQUE,
                             key_salt BLOB NOT NULL,
                             voice_signature BLOB,
+                            face_encoding BLOB,
                             question_id_1 INTEGER NOT NULL,
                             answer_1 BLOB NOT NULL,
                             question_id_2 INTEGER NOT NULL,
@@ -157,7 +158,7 @@ class DataBase:
         return dk_encryption_key
 
 
-    def user_signup(self, username, password, email, phone_number, voice_signature, questions_dict):
+    def user_signup(self, username, password, email, phone_number, voice_signature, face_encoding, questions_dict):
         try:
             random_password_salt = os.urandom(32)
             salted_password = random_password_salt + password.encode()
@@ -168,7 +169,16 @@ class DataBase:
             dk_f = Fernet(user_dk)
             encrypted_email = dk_f.encrypt(email.encode())
             encrypted_phone_number = dk_f.encrypt(phone_number.encode())
-            encrypted_voice_signature = dk_f.encrypt(voice_signature)
+
+            if voice_signature:
+                encrypted_voice_signature = dk_f.encrypt(voice_signature)
+            else:
+                encrypted_voice_signature = None
+
+            if face_encoding:
+                encrypted_face_encoding = dk_f.encrypt(face_encoding)
+            else:
+                encrypted_face_encoding = None
 
             random_key_salt = os.urandom(16)
             dk_encryption_key = self.create_dk_encryption_key(username, password_hex, random_key_salt)
@@ -185,11 +195,11 @@ class DataBase:
             hashed_answer_2 = hashlib.sha256(answer_2.encode() + answers_salt).hexdigest()
             hashed_answer_3 = hashlib.sha256(answer_3.encode() + answers_salt).hexdigest()
             self.cur.execute("""INSERT INTO USERS 
-                             (username, password, password_salt, email, phone_number, user_dk, key_salt, voice_signature, 
+                             (username, password, password_salt, email, phone_number, user_dk, key_salt, voice_signature, face_encoding,
                              question_id_1, answer_1, question_id_2, answer_2, question_id_3, answer_3, answers_salt)
-                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
                             (username, password_hex, random_password_salt, encrypted_email, encrypted_phone_number, encrypted_user_dk, random_key_salt, encrypted_voice_signature,
-                             q_id_1, hashed_answer_1, q_id_2, hashed_answer_2, q_id_3, hashed_answer_3, answers_salt))
+                             encrypted_face_encoding, q_id_1, hashed_answer_1, q_id_2, hashed_answer_2, q_id_3, hashed_answer_3, answers_salt))
         except sqlite3.IntegrityError as e:
             return None
         except AttributeError as e:
@@ -242,8 +252,50 @@ class DataBase:
     def get_voice_signature(self, username):
         self.cur.execute("""SELECT user_id, voice_signature FROM USERS WHERE username = ?""", (username, ))
         user_id, voice_signature = self.cur.fetchone()
+        if voice_signature is None:
+            return None
         decrypted_voice_signature = self.decrypt_data(user_id, [voice_signature])[0]
         return decrypted_voice_signature
+    
+    def get_face_encoding(self, username):
+        self.cur.execute("""SELECT user_id, face_encoding FROM USERS WHERE username = ?""", (username, ))
+        user_id, face_encoding = self.cur.fetchone()
+        if face_encoding is None:
+            return None
+        decrypted_face_encoding = self.decrypt_data(user_id, [face_encoding])[0]
+        return decrypted_face_encoding
+    
+    def get_user_auth_options(self, username):
+        auth_options = {}
+        if self.get_voice_signature(username):
+            auth_options["voice_auth"] = True
+        else:
+            auth_options["voice_auth"] = False
+        
+        if self.get_face_encoding(username):
+            auth_options["face_auth"] = True
+        else:
+            auth_options["face_auth"] = False
+
+        return auth_options
+    
+    def setup_voice_auth(self, user_id, voice_signature):
+        encrypted_voice_signature = self.encrypt_data(user_id, [voice_signature])[0]
+        self.cur.execute("""UPDATE USERS
+                         SET voice_signature = ?
+                         WHERE user_id = ?""",
+                         (encrypted_voice_signature, user_id))
+        
+        self.conn.commit()
+
+    def setup_face_recognition(self, user_id, face_encoding):
+        encrypted_face_encoding = self.encrypt_data(user_id, [face_encoding])[0]
+        self.cur.execute("""UPDATE USERS
+                         SET face_encoding = ?
+                         WHERE user_id = ?""",
+                         (encrypted_face_encoding, user_id))
+        
+        self.conn.commit()
     
     def get_security_questions_list(self):
         self.cur.execute("""SELECT question FROM SECURITY_QUESTIONS""")
@@ -442,19 +494,3 @@ class DataBase:
         
         self.conn.commit()
 
-    
-    
-    
-
-# db = DataBase()
-# db.user_signup("noam", "1234", "noam@gmail.com", "054")
-# user_id = db.user_login("noam", "1234")
-# db.register_site(user_id, "mashov", "noam123", "Abcd123")
-# db.register_site(user_id, "whatsapp", "noam456", "Abcd456")
-# print(db.get_registered_sites(user_id))
-# print(db.get_site_info(user_id, "mashov"))
-
-# if db.does_user_exist("noam2"):
-#     user_id = db.user_login("noam2", "")
-# else:
-#     print("user doesn't exist")

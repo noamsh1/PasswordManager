@@ -60,6 +60,9 @@ class SignupWindow(ctk.CTkToplevel):
         self.add_voice_auth_button= ctk.CTkButton(self, width= 200, height= 50, corner_radius= 5, fg_color= "blue", hover_color= "light blue", text= "Add Voice Authentication", text_color= "black", border_color= "blue", command= self.call_run_voice_recording_window)
         self.add_voice_auth_button.place(x = 100, y = 300)
 
+        self.add_face_recognition_button = ctk.CTkButton(self, width= 200, height= 50, corner_radius= 5, fg_color= "blue", hover_color= "light blue", text= "Add Face Recognition", text_color= "black", border_color= "blue", command= self.call_run_video_capture_window)
+        self.add_face_recognition_button.place(x= 100, y= 350)
+
         self.setup_security_questions_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Setup security questions", text_color= "black", border_color= "green", command= self.call_setup_security_questions_window)
         self.setup_security_questions_button.place(x= 510, y= 240)
 
@@ -116,7 +119,13 @@ class SignupWindow(ctk.CTkToplevel):
         self.app.run_voice_recording_window()
 
     def voice_auth_added(self):
-        self.add_voice_auth_button.configure(border_color = "green", border_width = 3)
+        self.add_voice_auth_button.configure(border_color = "green", border_width = 2)
+
+    def call_run_video_capture_window(self):
+        self.app.run_video_capture_window()
+
+    def face_recognition_added(self):
+        self.add_face_recognition_button.configure(border_color = "green", border_width = 2)
 
     def call_setup_security_questions_window(self):
         self.app.run_security_questions_setup_window()

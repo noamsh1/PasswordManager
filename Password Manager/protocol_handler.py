@@ -30,6 +30,7 @@ PROTOCOL_SERVER = {
     "not_registered_msg" : "NOT_REGISTERED",
     "your_sites_msg" : "YOUR_SITES",
     "info_msg" : "INFO",
+    "your_auth_options_msg" : "YOUR_AUTH_OPTIONS",
     "code_correct_msg" : "CODE_CORRECT",
     "code_incorrect_msg" : "CODE_INCORRECT",
     "code_expired_msg" : "CODE_EXPIRED",
@@ -38,6 +39,10 @@ PROTOCOL_SERVER = {
     "no_email_registered_msg" : "NO_EMAIL_REGISTERED",
     "voice_verified_msg" : "VOICE_VERIFIED",
     "voice_not_verified_msg" : "VOICE_NOT_VERIFIED",
+    "face_matches_msg" : "FACE_MATCHES",
+    "face_not_matches_msg" : "FACE_NOT_MATCHES",
+    "voice_auth_set_msg" : "VOICE_AUTH_SET",
+    "face_recognition_set_msg" : "FACE_RECOGNITION_SET",
     "site_deleted_msg" : "SITE_DELETED",
     "site_recovered_msg" : "SITE_RECOVERED"
 }
@@ -55,10 +60,14 @@ PROTOCOL_CLIENT = {
     "change_password_msg" : "CHANGE_PASSWORD",
     "registered_sites_msg" : "REGISTERED_SITES",
     "site_info_msg" : "SITE_INFO",
+    "get_auth_options_msg" : "GET_AUTH_OPTIONS",
     "code_login_msg" : "CODE_LOGIN",
     "send_code_msg" : "SEND_CODE",
     "my_email_msg" : "MY_EMAIL",
     "voice_auth_msg" : "VOICE_AUTH",
+    "check_face_recognition_msg" : "CHECK_FACE_RECOGNITION",
+    "setup_voice_auth_msg" : "SETUP_VOICE_AUTH",
+    "setup_face_recognition_msg" : "SETUP_FACE_RECOGNITION",
     "delete_site_msg" : "DELETE_SITE",
     "recover_site_msg" : "RECOVER_SITE"
 }
