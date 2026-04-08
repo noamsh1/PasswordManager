@@ -94,6 +94,8 @@ class Client:
             self.ui.display_login_error("Username does not exist")
         elif cmd == self.protocol_handler.server_messages["incorrect_password_msg"]:
             self.ui.display_login_error("Password is incorrect")
+        elif cmd == self.protocol_handler.server_messages["timeout_msg"]:
+            self.ui.display_login_error(f"Too many login attempts. Timeout for {data} minutes")
 
     def get_security_questions_list(self):
         self.build_and_send_message(self.protocol_handler.client_messages["security_questions_msg"], "")
@@ -125,6 +127,8 @@ class Client:
             self.ui.security_answers_correct()
         elif cmd == self.protocol_handler.server_messages["security_answers_incorrect_msg"]:
             self.ui.security_answers_incorrect()
+        elif cmd == self.protocol_handler.server_messages["timeout_msg"]:
+            self.ui.security_answers_timeout(data)
 
     def reset_password(self, new_password):
         self.build_and_send_message(self.protocol_handler.client_messages["reset_password_msg"], f"{self.username}{DATA_DELIMITER}{new_password}")
@@ -152,6 +156,8 @@ class Client:
             self.ui.code_incorrect()
         elif cmd == self.protocol_handler.server_messages["code_expired_msg"]:
             self.ui.code_expired()
+        elif cmd == self.protocol_handler.server_messages["timeout_msg"]:
+            self.ui.code_login_timeout(data)
 
     def request_code(self, client_email):
         self.build_and_send_message(self.protocol_handler.client_messages["send_code_msg"], f"{client_email}")
@@ -211,6 +217,8 @@ class Client:
                 self.ui.voice_auth_successful()
             elif cmd == self.protocol_handler.server_messages["voice_not_verified_msg"]:
                 self.ui.voice_auth_unsuccessful()
+            elif cmd == self.protocol_handler.server_messages["timeout_msg"]:
+                self.ui.voice_auth_timeout(data)
         else:
             self.ui.signature_extraction_error()
 
@@ -326,10 +334,19 @@ class Client:
     def build_and_send_message(self, cmd, data):
         msg = self.protocol_handler.build_message(cmd, data)
         encrypted_msg = self.conn_manager.encrypt_data(msg, self.conn_manager.get_AES())
-        self.conn_manager.send_msg(self.conn_manager.socket, encrypted_msg)
+        try:
+            self.conn_manager.send_msg(self.conn_manager.socket, encrypted_msg)
+        except ConnectionResetError as e:
+            self.ui.connection_lost()
+            return
+        
 
     def receive_and_parse_message(self):
-        encrypted_msg = self.conn_manager.receive_msg(self.conn_manager.socket)
+        try:
+            encrypted_msg = self.conn_manager.receive_msg(self.conn_manager.socket)
+        except ConnectionResetError as e:
+            self.ui.connection_lost()
+            return (None, None)
         decrypted_msg = self.conn_manager.decrypt_data(encrypted_msg, self.conn_manager.get_AES())
         cmd, data = self.protocol_handler.parse_message(decrypted_msg)
         return cmd, data

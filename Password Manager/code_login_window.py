@@ -33,8 +33,8 @@ class CodeLoginWindow(ctk.CTkToplevel):
         self.resend_code_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Resend Code", text_color= "black", border_color= "green", state = "disabled", command = self.call_resend_code)
         self.resend_code_button.place(x = 500, y = 300)
 
-        self.error_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 20), text_color= "red")
-        self.error_text.place(x = 300, y = 360)
+        self.msg_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 20), text_color= "red")
+        self.msg_text.place(x = 355, y = 360, anchor= "center")
         
         self.transient(self.app.window)
         self.lift()
@@ -79,18 +79,28 @@ class CodeLoginWindow(ctk.CTkToplevel):
         self.app.call_check_code(code)
 
     def incorrect_code_feedback(self):
-        self.error_text.configure(text= "Code Incorrect")
+        self.msg_text.configure(text= "Code Incorrect")
         for entry in self.entries:
             entry.configure(border_color = "red", border_width = 3)
 
     def display_code_expired_msg(self):
-        self.error_text.configure(text= "Code Expired! Request another code")
+        self.display_error("Code Expired! Request another code")
         for entry in self.entries:
             entry.delete(0, "end")
         self.resend_code_button.configure(state = "normal")
 
+    def display_error(self, msg):
+        self.msg_text.configure(text= msg, text_color= "red")
+
+    def display_msg(self, msg):
+        self.msg_text.configure(text= msg, text_color= "black")
+
     def call_resend_code(self):
         self.app.request_login_code(self.client_email)
+
+    def code_resent(self):
+        self.display_msg("Code Sent")
+        self.resend_code_button.configure(state= "disabled")
 
     def close_window(self):
         self.destroy()

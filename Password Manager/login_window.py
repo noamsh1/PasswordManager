@@ -32,7 +32,7 @@ class LoginWindow(ctk.CTkToplevel):
         self.show_password_button.place(x = 500, y= 175)
 
         self.error_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 25), text_color= "red")
-        self.error_text.place(x= 300, y= 350)
+        self.error_text.place(x= 355, y= 370, anchor= "center")
 
         login_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Login", text_color= "black", border_color= "green", command= self.call_login)
         login_button.place(x = 300, y= 300)

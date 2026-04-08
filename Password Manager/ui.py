@@ -18,6 +18,7 @@ from change_password_window import ChangePasswordWindow
 from site_recovery_window import SiteRecoveryWindow
 from settings_menu_frame import SettingsMenuFrame
 from CTkListbox import *
+from CTkMessagebox import *
 from client_status import Status
 
 WINDOW_WIDTH = 1200
@@ -179,6 +180,9 @@ class UI:
     def security_answers_incorrect(self):
         self.security_questions_window.display_error("One or more answers are incorrect")
 
+    def security_answers_timeout(self, minutes):
+        self.security_questions_window.display_error(f"Too many attempts. Timeout for {minutes} minutes")
+
     def run_reset_password_window(self):
         if self.reset_password_window is None or not self.reset_password_window.winfo_exists():
             self.reset_password_window = ResetPasswordWindow(self)
@@ -204,7 +208,10 @@ class UI:
     def request_login_code(self, client_email):
         was_code_sent = self.client.request_code(client_email)
         if was_code_sent:
-            self.run_code_login_window(client_email)
+            if self.code_login_window is None:
+                self.run_code_login_window(client_email)
+            else:
+                self.code_login_window.code_resent()
     
     def call_is_email_valid(self, email):
         result = self.client.is_email_valid(email)
@@ -232,6 +239,9 @@ class UI:
 
     def code_expired(self):
         self.code_login_window.display_code_expired_msg()
+
+    def code_login_timeout(self, minutes):
+        self.code_login_window.display_error(f"Too many attempts. Timeout for {minutes} minutes")
 
     def run_voice_recording_window(self):
         if self.voice_recording_window is None or not self.voice_recording_window.winfo_exists():
@@ -274,6 +284,9 @@ class UI:
 
     def voice_auth_unsuccessful(self):
         self.voice_recording_window.display_error("Voice didn't match. Try recording again.")
+
+    def voice_auth_timeout(self, minutes):
+        self.voice_recording_window.display_error(f"Too many attempts. Timeout for {minutes} minutes")
 
 
     def get_cameras_list(self):
@@ -516,3 +529,8 @@ class UI:
         self.window.clipboard_clear()
         self.window.clipboard_append(text) 
         self.window.update()
+
+    def connection_lost(self):
+        msg = CTkMessagebox(title= "Password Manager", message= "Connection with server lost", font= ("sans", 16), option_1= "Close App", icon= "cancel", icon_size= (50, 50))
+        if msg.get() == "Close App":
+            self.window.destroy()

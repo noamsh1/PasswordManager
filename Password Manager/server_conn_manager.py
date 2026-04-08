@@ -6,16 +6,22 @@ from cryptography.hazmat.primitives import serialization, hashes
 import os
 import base64
 import uuid
+import threading
+import time
 
+MAX_MESSAGES_PER_CYCLE = 4
+CYCLE_LENGTH = 1
 
 class ServerConnectionManager(ConnectionManager):
     
     def __init__(self):
         super(ServerConnectionManager, self).__init__()
         self.public_pem = None
-        self.server_socket = self.setup_socket()
         self.client_sockets = []
         self.sockets_to_keys = {}
+        self.client_message_count = {}
+        self.message_count_dict_lock = threading.Lock()
+        self.server_socket = self.setup_socket()
         
 
     def setup_socket(self):
@@ -23,6 +29,7 @@ class ServerConnectionManager(ConnectionManager):
         server_socket.bind(("0.0.0.0", SERVER_PORT))
         server_socket.listen()
         self.generate_RSA()
+        threading.Thread(target = self.reset_client_message_count_loop).start()
         # print("Server is up and running")
         return server_socket
     
@@ -38,6 +45,22 @@ class ServerConnectionManager(ConnectionManager):
         self.client_sockets.append(client_socket)
         self.handshake(client_socket)
 
+    def has_reached_max_messages(self, conn):
+        with self.message_count_dict_lock:
+            if conn not in self.client_message_count.keys():
+                self.client_message_count[conn] = 1
+            else:
+                self.client_message_count[conn] += 1
+            
+
+            return self.client_message_count[conn] >= MAX_MESSAGES_PER_CYCLE
+
+    def reset_client_message_count_loop(self):
+        while True:
+            with self.message_count_dict_lock:
+                self.client_message_count.clear()
+            time.sleep(CYCLE_LENGTH)
+            
 
     def close_conn(self, socket):
         socket.close()

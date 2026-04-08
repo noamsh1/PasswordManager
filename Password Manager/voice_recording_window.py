@@ -29,7 +29,7 @@ class VoiceRecordingWindow(ctk.CTkToplevel):
         self.auth_button.place(x = 200, y = 250)
 
         self.error_label = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 20), text_color = "red")
-        self.error_label.place(x = 300, y = 350)
+        self.error_label.place(x = 300, y = 350, anchor= "center")
 
         self.grab_set() 
 

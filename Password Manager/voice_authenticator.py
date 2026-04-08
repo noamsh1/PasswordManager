@@ -1,4 +1,4 @@
-from vosk import Model, SpkModel, KaldiRecognizer
+from vosk import Model, SpkModel, KaldiRecognizer, SetLogLevel
 import os
 import wave
 import json
@@ -12,6 +12,7 @@ THRESHOLD = 0.7
 
 class VoiceAuthenticator:
     def __init__(self):
+        SetLogLevel(-1) # no vosk logs
         self.model = Model(MODEL_PATH)
         self.spk_model = SpkModel(SPK_MODEL_PATH)
 

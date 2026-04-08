@@ -35,16 +35,18 @@ class AuthSelectWindow(ctk.CTkToplevel):
 
     def call_email_login(self):
         email = self.app.get_email()
+        self.close_window()
         self.app.request_login_code(email)
-        self.after(10, self.close_window)
 
     def call_voice_auth(self):
+        self.close_window()
         self.app.run_voice_recording_window()
-        self.after(10, self.close_window)
 
     def call_face_recognition(self):
+        self.close_window()
         self.app.run_video_capture_window()
-        self.after(10, self.close_window)
 
     def close_window(self):
+        self.grab_release()
+        self.withdraw()
         self.destroy()

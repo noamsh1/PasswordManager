@@ -1,6 +1,6 @@
 from server_protocol_handler import ServerProtocolHandler, DATA_DELIMITER
 from server_conn_manager import ServerConnectionManager
-from user_manager import UserManager
+from user_manager import UserManager, TIMEOUT_LENGTH_MINUTES
 from database import DataBase
 from password_handler import PasswordHandler, DEFAULT_SETTINGS
 from email_manager import EmailManager, EMAIL_CODE_EXPIRATION_TIME
@@ -34,27 +34,30 @@ class Server:
                 if current_socket is self.socket:
                     self.conn_manager.accept_client_socket(self.socket)
                 else:
-                    print("New data from client")
-                    data = ""
-                    cmd = ""
-                    try:
-                        encrypted_msg = self.conn_manager.receive_msg(current_socket)
-                        full_msg = self.conn_manager.decrypt_msg(current_socket, encrypted_msg)
-                        print(f"[SERVER]" + full_msg)
-                        cmd, data = self.protocol_handler.parse_message(full_msg)
-                        if cmd is None or data is None:
-                            self.conn_manager.close_conn(current_socket)
-                    except ConnectionResetError as e:
-                        print(e)
-                        self.conn_manager.close_conn(current_socket)
-                    except BaseException as baseEx:
-                        print(baseEx)
-                        self.conn_manager.close_conn(current_socket)
-                    if cmd == "":
+                    if self.conn_manager.has_reached_max_messages(current_socket):
                         self.conn_manager.close_conn(current_socket)
                     else:
-                        print((cmd, data))
-                        self.handle_client_message(current_socket, cmd, data)
+                        print("New data from client")
+                        data = ""
+                        cmd = ""
+                        try:
+                            encrypted_msg = self.conn_manager.receive_msg(current_socket)
+                            full_msg = self.conn_manager.decrypt_msg(current_socket, encrypted_msg)
+                            print(f"[SERVER]" + full_msg)
+                            cmd, data = self.protocol_handler.parse_message(full_msg)
+                            if cmd is None or data is None:
+                                self.conn_manager.close_conn(current_socket)
+                        except ConnectionResetError as e:
+                            print(e)
+                            self.conn_manager.close_conn(current_socket)
+                        except BaseException as baseEx:
+                            print(baseEx)
+                            self.conn_manager.close_conn(current_socket)
+                        if cmd == "":
+                            self.conn_manager.close_conn(current_socket)
+                        else:
+                            print((cmd, data))
+                            self.handle_client_message(current_socket, cmd, data)
             self.send_messages_to_clients()
 
     def handle_client_message(self, conn, cmd, data):
@@ -108,15 +111,27 @@ class Server:
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
-        if self.db_manager.does_user_exist(username):
-            result = self.db_manager.user_login(username, password)
-            if result == None:
-                self.build_and_queue_message(conn, "incorrect_password_msg", "")
-            else:
-                self.user_manager.logged_users[conn] = result
-                self.build_and_queue_message(conn, "login_ok_msg", "")
+        if self.user_manager.is_user_in_timeout(username):
+            self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
         else:
-            self.build_and_queue_message(conn, "username_invalid_msg", "")
+            if self.db_manager.does_user_exist(username):
+                result = self.db_manager.user_login(username, password)
+                if result == None:
+                    in_timeout = self.user_manager.register_failed_login_attempt(username)
+                    if in_timeout:
+                        self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                    else:
+                        self.build_and_queue_message(conn, "incorrect_password_msg", "")
+                else:
+                    self.user_manager.logged_users[conn] = result
+                    self.user_manager.successful_login_attempt(username)
+                    self.build_and_queue_message(conn, "login_ok_msg", "")
+            else:
+                in_timeout = self.user_manager.register_failed_login_attempt(username)
+                if in_timeout:
+                    self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                else:
+                    self.build_and_queue_message(conn, "username_invalid_msg", "")
 
         # if self.user_manager.does_user_exist(username):
         #     if self.user_manager.user_dict[username].password == password:
@@ -185,10 +200,18 @@ class Server:
     def handle_check_security_answers_msg(self, conn, data):
         data_list = self.protocol_handler.split_data(data)
         username, *answers_list = data_list
-        if self.db_manager.check_user_security_answers(username, answers_list):
-            self.build_and_queue_message(conn, "security_answers_correct_msg", "")
-        else:  
-            self.build_and_queue_message(conn, "security_answers_incorrect_msg", "")
+        if self.user_manager.is_user_in_timeout(username):
+            self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+        else:
+            if self.db_manager.check_user_security_answers(username, answers_list):
+                self.user_manager.successful_login_attempt(username)
+                self.build_and_queue_message(conn, "security_answers_correct_msg", "")
+            else: 
+                in_timeout = self.user_manager.register_failed_login_attempt(username)
+                if in_timeout:
+                    self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                else:
+                    self.build_and_queue_message(conn, "security_answers_incorrect_msg", "")
 
     def handle_reset_password_msg(self, conn, data):
         data_list = self.protocol_handler.split_data(data)
@@ -221,12 +244,21 @@ class Server:
         sent_code, code_creation_time = self.conn_code[conn]
         current_time = datetime.datetime.now()
         time_diff = current_time - code_creation_time
-        if time_diff > datetime.timedelta(seconds = EMAIL_CODE_EXPIRATION_TIME):
-            self.build_and_queue_message(conn, "code_expired_msg", "")
-        elif sent_code == data:
-            self.build_and_queue_message(conn, "code_correct_msg", "")
+        username = self.user_manager.logged_users[conn]
+        if self.user_manager.is_user_in_timeout(username):
+            self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
         else:
-            self.build_and_queue_message(conn, "code_incorrect_msg", "")
+            if time_diff > datetime.timedelta(seconds = EMAIL_CODE_EXPIRATION_TIME):
+                self.build_and_queue_message(conn, "code_expired_msg", "")
+            elif sent_code == data:
+                self.user_manager.successful_login_attempt(username)
+                self.build_and_queue_message(conn, "code_correct_msg", "")
+            else:
+                in_timeout = self.user_manager.register_failed_login_attempt(username)
+                if in_timeout:
+                    self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                else:
+                    self.build_and_queue_message(conn, "code_incorrect_msg", "")
 
     def handle_voice_auth_msg(self, conn, data):
         data_list = self.protocol_handler.split_data(data)
@@ -234,10 +266,19 @@ class Server:
         login_voice_signature = data_list[1]
         bin_login_voice_signature = base64.b64decode(login_voice_signature)
         bin_stored_voice_signature = self.db_manager.get_voice_signature(username)
-        if self.voice_authenticator.verify_user(bin_stored_voice_signature, bin_login_voice_signature):
-            self.build_and_queue_message(conn, "voice_verified_msg", "")
+
+        if self.user_manager.is_user_in_timeout(username):
+            self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
         else:
-            self.build_and_queue_message(conn, "voice_not_verified_msg", "")
+            if self.voice_authenticator.verify_user(bin_stored_voice_signature, bin_login_voice_signature):
+                self.user_manager.successful_login_attempt(username)
+                self.build_and_queue_message(conn, "voice_verified_msg", "")
+            else:
+                in_timeout = self.user_manager.register_failed_login_attempt(username)
+                if in_timeout:
+                    self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                else:
+                    self.build_and_queue_message(conn, "voice_not_verified_msg", "")
 
     def handle_check_face_recognition_msg(self, conn, data):
         data_list = self.protocol_handler.split_data(data)

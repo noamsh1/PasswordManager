@@ -17,6 +17,7 @@ PROTOCOL_SERVER = {
     "login_ok_msg" : "LOGIN_OK",
     "username_invalid_msg" : "USERNAME_INVALID",
     "incorrect_password_msg" : "INCORRECT_PASSWORD",
+    "timeout_msg" : "TIMEOUT",
     "security_questions_list_msg" : "SECURITY_QUESTIONS_LIST",
     "your_security_questions_msg" : "YOUR_SECURITY_QUESTIONS",
     "security_answers_correct_msg" : "SECURITY_ANSWERS_CORRECT",
