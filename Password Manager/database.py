@@ -1,12 +1,17 @@
 import sqlite3
 import os
 import hashlib
+from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
-DB_PATH = r"C:\Users\noams\OneDrive\Databases\PasswordManager.db"
+
+load_dotenv()
+
+DEFAULT_DB_PATH = r".\Database\PasswordManager.db"
+#DB_PATH = r"C:\Users\noams\OneDrive\Databases\PasswordManager.db"
 SECURITY_QUESTIONS_LIST = ["What is the name of your grandmother from your father's side?",
                            "What was the house number of the house you lived in as a child? (digits)",
                            "What was the make and model of the first-ever mobile phone you owned?",
@@ -25,9 +30,13 @@ class DataBase:
         self.users_keys = {}
 
         init_db = False
-        if not os.path.exists(DB_PATH):
+        db_path = os.getenv("DB_PATH", DEFAULT_DB_PATH)
+        db_dir = os.path.dirname(db_path)
+        if not os.path.exists(db_path):
+            if db_dir:
+                os.makedirs(db_dir)
             init_db = True
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(db_path)
         self.cur = self.conn.cursor()
         
         if init_db:
