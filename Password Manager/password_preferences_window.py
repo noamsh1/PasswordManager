@@ -101,7 +101,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
         self.save_preferences_button.place(x = 280, y= 320)
 
         self.error_label = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 20), text_color= "red")
-        self.error_label.place(x= 100, y= 370)
+        self.error_label.place(x= 100, y= 370, anchor= "center")
 
 
         self.grab_set()
@@ -139,7 +139,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
             if length < MINIMUM_PASSWORD_LENGTH:
                 raise ValueError
         except ValueError:
-            self.display_error(f"Maximum length should be a number greater than {MINIMUM_PASSWORD_LENGTH}")
+            self.display_error(f"Maximum length should be a number equal or greater than {MINIMUM_PASSWORD_LENGTH}")
             return
         
         preferences["max_length"] = length

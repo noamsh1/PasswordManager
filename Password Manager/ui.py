@@ -68,8 +68,9 @@ class UI:
         self.search_box = ctk.CTkEntry(self.window, width = 950, height= 30, corner_radius= 3, placeholder_text= "Search site", textvariable= self.search_var)
         self.delete_search_button = ctk.CTkButton(self.window, width= 50, height= 30, corner_radius= 3, text= "Delete search", command= lambda: self.search_var.set(""))
 
-        self.curret_site_selection = None
-        self.registered_sites_list = CTkListbox(self.window, height= 350, width= 1000, command= self.enable_site_buttons)
+        self.current_site_selection = None
+        self.registered_sites_list = []
+        self.registered_sites_listbox = CTkListbox(self.window, height= 350, width= 1000, command= self.enable_site_buttons)
 
         self.site_info_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "View site info", text_color= "black", border_color= "green", state= "disabled", command= self.show_selected_site_info)
         self.site_info_window = None
@@ -369,7 +370,8 @@ class UI:
             self.run_reset_password_window()
 
     def get_registered_sites(self):
-        return self.client.get_registered_sites(False)
+        self.registered_sites_list = self.client.get_registered_sites(False)
+        self.load_registered_sites()
     
     def get_deleted_sites(self):
         return self.client.get_registered_sites(True)
@@ -386,13 +388,13 @@ class UI:
         self.delete_site_button.place(x= 750, y= 150)
         self.recover_site_button.place(x= 950, y= 150)
 
-        self.load_registered_sites()
+        self.get_registered_sites()
         self.search_box.place(x= 100, y= 220)
         self.delete_search_button.place(x= 1050, y= 220)
-        self.registered_sites_list.place(x= 100, y= 250)
+        self.registered_sites_listbox.place(x= 100, y= 250)
 
-        self.settings_menu = SettingsMenuFrame(self, WINDOW_WIDTH, self.client.auth_options, corner_radius = 0)
-        self.settings_menu.place(relx=1.0, rely=0, relheight=1, anchor="nw")
+        self.settings_menu = SettingsMenuFrame(self, self.client.auth_options, corner_radius = 0)
+        self.settings_menu.place(relx=1.0, rely=0, relheight=1, relwidth= 0.2,anchor="nw")
 
         self.settings_button = ctk.CTkButton(self.window, width= 40, text= "⚙", text_color= "black", fg_color= "transparent", command= self.settings_menu.toggle)
         self.settings_button.place(x=1150, y=10)
@@ -414,7 +416,7 @@ class UI:
 
     def registration_succesful(self, password):
         copy_password = self.site_registration_window.close_window()
-        self.load_registered_sites()
+        self.get_registered_sites()
         if copy_password:
             self.copy_to_clipboard(password)
         self.client.change_status(Status.NORMAL)
@@ -437,40 +439,46 @@ class UI:
             self.password_preferences_window.close_window()
 
     def load_registered_sites(self, *args):
-        self.registered_sites_list.delete("all")
-        registered_sites = self.get_registered_sites()
-        found_current_selection = False
-        for site_url in registered_sites:
-            if self.search_var.get() != "":
-                if self.search_var.get().lower() in site_url.lower():
-                    self.registered_sites_list.insert("end", site_url)
-                    if site_url == self.curret_site_selection:
-                        found_current_selection = True
-                        self.registered_sites_list.select(-1)
-            else:
-                self.registered_sites_list.insert("end", site_url)
-                if site_url == self.curret_site_selection:
-                        found_current_selection = True
-                        self.registered_sites_list.select(-1)
-        
-        if not found_current_selection:
-            self.disable_site_buttons()
+        search_term = self.search_var.get().lower()
+        new_list = [site for site in self.registered_sites_list 
+                if not search_term or search_term in site.lower()]
+        try:
+            current_content = self.registered_sites_listbox.get("all")
+        except:
+            current_content = []
+        if new_list != current_content:
+            self.registered_sites_listbox.delete("all")
+            found_current_selection = False
+            for site_url in self.registered_sites_list:
+                if self.search_var.get() != "":
+                    if self.search_var.get().lower() in site_url.lower():
+                        self.registered_sites_listbox.insert("end", site_url)
+                        if site_url == self.current_site_selection:
+                            found_current_selection = True
+                            self.registered_sites_listbox.select(-1)
+                else:
+                    self.registered_sites_listbox.insert("end", site_url)
+                    if site_url == self.current_site_selection:
+                            found_current_selection = True
+                            self.registered_sites_listbox.select(-1)
+            
+            if not found_current_selection:
+                self.disable_site_buttons()
 
     def enable_site_buttons(self, site):
-        self.curret_site_selection = site
+        self.current_site_selection = site
         self.site_info_button.configure(state= "normal")
         self.change_password_button.configure(state= "normal")
         self.delete_site_button.configure(state= "normal")
 
     def disable_site_buttons(self):
-        self.current_site_selection = None
         self.site_info_button.configure(state= "disabled")
         self.change_password_button.configure(state= "disabled")
         self.delete_site_button.configure(state= "disabled")
 
 
     def show_selected_site_info(self):
-        site_url = self.registered_sites_list.get()
+        site_url = self.registered_sites_listbox.get()
         site_username, site_password = self.call_site_info(site_url)
         self.run_site_info_window(site_username, site_password)
 
@@ -484,7 +492,7 @@ class UI:
             self.site_info_window.focus()
 
     def initiate_change_password_window(self):
-        site_url = self.registered_sites_list.get()
+        site_url = self.registered_sites_listbox.get()
         site_username, site_password = self.call_site_info(site_url)
         self.run_change_site_password_window(site_url, site_username)
         
@@ -508,7 +516,7 @@ class UI:
         self.client.update_password_preferences(site_url, preferences)
 
     def delete_site(self):
-        site_url = self.registered_sites_list.get()
+        site_url = self.registered_sites_listbox.get()
         self.client.delete_site(site_url)
 
     def run_site_recovery_window(self):
@@ -520,7 +528,7 @@ class UI:
 
     def site_recovery_successful(self):
         self.site_recovery_window.close_window()
-        self.load_registered_sites()
+        self.get_registered_sites()
 
     def call_recover_site(self, site_url):
         self.client.recover_site(site_url)

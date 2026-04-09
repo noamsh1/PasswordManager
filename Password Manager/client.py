@@ -321,7 +321,7 @@ class Client:
         if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
             print("site not registered")
         elif cmd == self.protocol_handler.server_messages["site_deleted_msg"]:
-            self.ui.load_registered_sites()
+            self.ui.get_registered_sites()
 
     def recover_site(self, site_url):
         self.build_and_send_message(self.protocol_handler.client_messages["recover_site_msg"], site_url)

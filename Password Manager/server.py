@@ -244,19 +244,23 @@ class Server:
         sent_code, code_creation_time = self.conn_code[conn]
         current_time = datetime.datetime.now()
         time_diff = current_time - code_creation_time
-        username = self.user_manager.logged_users[conn]
+        username = self.user_manager.logged_users.get(conn, "")
         if self.user_manager.is_user_in_timeout(username):
             self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
         else:
             if time_diff > datetime.timedelta(seconds = EMAIL_CODE_EXPIRATION_TIME):
                 self.build_and_queue_message(conn, "code_expired_msg", "")
             elif sent_code == data:
-                self.user_manager.successful_login_attempt(username)
+                if username != "":
+                    self.user_manager.successful_login_attempt(username)
                 self.build_and_queue_message(conn, "code_correct_msg", "")
             else:
-                in_timeout = self.user_manager.register_failed_login_attempt(username)
-                if in_timeout:
-                    self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                if username != "":
+                    in_timeout = self.user_manager.register_failed_login_attempt(username)
+                    if in_timeout:
+                        self.build_and_queue_message(conn, "timeout_msg", f"{TIMEOUT_LENGTH_MINUTES}")
+                    else:
+                        self.build_and_queue_message(conn, "code_incorrect_msg", "")
                 else:
                     self.build_and_queue_message(conn, "code_incorrect_msg", "")
 
@@ -301,7 +305,7 @@ class Server:
     def handle_setup_face_recognition_msg(self, conn, data):
         user_id = self.user_manager.logged_users[conn]
         bin_face_encoding = base64.b64decode(data)
-        self.db_manager.setup_voice_auth(user_id, bin_face_encoding)
+        self.db_manager.setup_face_recognition(user_id, bin_face_encoding)
         self.build_and_queue_message(conn, "face_recognition_set_msg", "")
 
     def handle_save_preferences_message(self, conn, data):

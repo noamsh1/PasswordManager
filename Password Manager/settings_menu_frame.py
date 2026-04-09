@@ -3,14 +3,13 @@ import customtkinter as ctk
 
 class SettingsMenuFrame(ctk.CTkFrame):
 
-    def __init__(self, app, app_width, auth_options, *args, **kwargs):
+    def __init__(self, app, auth_options, *args, **kwargs):
         super().__init__(master= app.window, *args, **kwargs)
 
-        self.grid_propagate(False)
+        self.pack_propagate(False)
 
         self.app = app
         self.is_open = False
-        self.width = app_width * 0.2
 
         self.close_button = ctk.CTkButton(self, text= "✕", width= 30, text_color= "black", fg_color= "transparent", hover_color= "gray30", command= self.toggle)
         self.close_button.place(x=5, y=5)
@@ -23,11 +22,13 @@ class SettingsMenuFrame(ctk.CTkFrame):
         
         if not auth_options["voice_auth"]:
             self.add_voice_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Add voice authentication", text_color= "black", border_color= "green", command= self.setup_voice_auth)
-            self.add_voice_auth_button.pack(pady= 10, padx= 50)
+            self.add_voice_auth_button.pack(pady= 10, padx= 30)
         
         if not auth_options["face_auth"]:
             self.add_face_recognition_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Add face recognition", text_color= "black", border_color= "green", command= self.setup_face_recognition)
-            self.add_face_recognition_button.pack(pady= 10, padx= 50)
+            self.add_face_recognition_button.pack(pady= 10, padx= 30)
+
+
 
     def toggle(self):
         if not self.is_open:
