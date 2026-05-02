@@ -217,9 +217,12 @@ class Server:
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         new_password = data_list[1]
-        user_id = self.db_manager.reset_user_password(username, new_password)
-        self.user_manager.logged_users[conn] = user_id
-        self.build_and_queue_message(conn, "reset_ok_msg", "")
+        if not PasswordHandler.is_strong_password(new_password):
+            self.build_and_queue_message(conn, "weak_password_msg", "")
+        else:
+            user_id = self.db_manager.reset_user_password(username, new_password)
+            self.user_manager.logged_users[conn] = user_id
+            self.build_and_queue_message(conn, "reset_ok_msg", "")
 
     def handle_get_auth_options_msg(self, conn, data):
         username = data

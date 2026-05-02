@@ -1,6 +1,6 @@
 # Protocol Constants
 
-CMD_FIELD_LENGTH = 20	# Exact length of cmd field (in bytes)
+CMD_FIELD_LENGTH = 30	# Exact length of cmd field (in bytes)
 LENGTH_FIELD_LENGTH = 4   # Exact length of length field (in bytes)
 MAX_DATA_LENGTH = 10**LENGTH_FIELD_LENGTH-1  # Max size of data field according to protocol
 MSG_HEADER_LENGTH = CMD_FIELD_LENGTH + 1 + LENGTH_FIELD_LENGTH + 1  # Exact size of header (CMD+LENGTH fields)

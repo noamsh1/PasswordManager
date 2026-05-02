@@ -5,7 +5,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 import os
 import base64
-import uuid
 import threading
 import time
 
@@ -104,17 +103,8 @@ class ServerConnectionManager(ConnectionManager):
                                       padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
                                       algorithm=hashes.SHA256(),
                                       label=None))
-        
-        client_key_id = uuid.uuid4().hex
-        self.sockets_to_keys[client_socket] = client_key_id
-        os.environ[client_key_id] = base64.b64encode(AES_key).decode("utf-8")
 
-
-    def get_AES_by_client(self, client_socket):
-        client_key = self.sockets_to_keys[client_socket]
-        AES_base64 = os.environ.get(client_key)
-        client_AES = base64.b64decode(AES_base64.encode())
-        return client_AES
+        self.sockets_to_keys[client_socket] = AES_key
     
 
     def handshake(self, client_socket):
@@ -123,11 +113,11 @@ class ServerConnectionManager(ConnectionManager):
 
 
     def encrypt_msg(self, client_socket, msg):
-        client_AES = self.get_AES_by_client(client_socket)
+        client_AES = self.sockets_to_keys[client_socket]
         encrypted_msg = self.encrypt_data(msg, client_AES)
         return encrypted_msg
 
     def decrypt_msg(self, client_socket, msg):
-        client_AES = self.get_AES_by_client(client_socket)
+        client_AES = self.sockets_to_keys[client_socket]
         decrypted_msg = self.decrypt_data(msg, client_AES)
         return decrypted_msg

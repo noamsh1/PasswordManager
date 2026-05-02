@@ -1,7 +1,8 @@
 import customtkinter as ctk
+from color_palettes import palette_color
 
-WINDOW_WIDTH = 710
-WINDOW_HEIGHT = 400
+WINDOW_WIDTH = 440
+WINDOW_HEIGHT = 420
 
 class AuthSelectWindow(ctk.CTkToplevel):
 
@@ -12,26 +13,59 @@ class AuthSelectWindow(ctk.CTkToplevel):
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
         self.wm_title("Password Manager")
+        self.configure(fg_color=palette_color("surface"))
 
-        self.title = ctk.CTkLabel(self, anchor= "center", text= "Choose second authentication factor", font= ("sans", 40), text_color= "black")
-        self.title.place(x= 355, y= 25, anchor= "center")
+        self.icon_circle = ctk.CTkFrame(self, width=56, height=56, corner_radius=28, fg_color=palette_color("accent"))
+        self.icon_circle.place(relx=0.5, y=45, anchor="center")
+        self.icon = ctk.CTkLabel(self.icon_circle, width=0, height=0, anchor="center", text="🔐", fg_color="transparent", text_color=palette_color("surface"), font=("Segoe UI Emoji", 24))
+        self.icon.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.email_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with Email", text_color= "black", border_color= "green", command= self.call_email_login)
-        self.email_auth_button.place(x = 150, y = 200, anchor = "center")
+        self.title = ctk.CTkLabel(self, anchor="center", text="Choose 2FA Method", font=("sans", 28, "bold"), text_color=palette_color("text"))
+        self.title.place(relx=0.5, y=95, anchor="center")
+        self.subtitle = ctk.CTkLabel(self, anchor="center", text="Select a second authentication factor", font=("sans", 14), text_color=palette_color("text_dim"))
+        self.subtitle.place(relx=0.5, y=125, anchor="center")
 
-        if auth_options["voice_auth"]:
-            self.voice_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with voice", text_color= "black", border_color= "green", state= "normal", command= self.call_voice_auth)
-        else:
-            self.voice_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with voice", text_color= "black", border_color= "green", state= "disabled", command= self.call_voice_auth)
-        self.voice_auth_button.place(x = 350, y = 200, anchor=  "center")
+        row_w = 380
+        row_h = 64
 
-        if auth_options["face_auth"]:
-            self.face_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with face recognition", text_color= "black", border_color= "green", state= "normal", command= self.call_face_recognition)
-        else:
-            self.face_auth_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Authenticate with face recognition", text_color= "black", border_color= "green", state= "disabled", command= self.call_face_recognition)
-        self.face_auth_button.place(x = 550, y = 200, anchor=  "center")
+        self.options_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.options_frame.place(relx=0.5, y=155, anchor="n")
+
+        self._email_row = self._make_option_row(self.options_frame, row_w, row_h, "📧", "Email Code", "Receive a verification code via email", True, self.call_email_login)
+        self._email_row.pack(pady=(0, 5))
+        self._voice_row = self._make_option_row(self.options_frame, row_w, row_h, "🎤", "Voice Auth", "Authenticate with your voice", auth_options["voice_auth"], self.call_voice_auth)
+        self._voice_row.pack(pady=5)
+        self._face_row = self._make_option_row(self.options_frame, row_w, row_h, "📷", "Face Recognition", "Authenticate with your face", auth_options["face_auth"], self.call_face_recognition)
+        self._face_row.pack(pady=(5, 0))
 
         self.grab_set()
+
+    def _make_option_row(self, parent, w, h, icon, title, desc, enabled, command):
+        border = palette_color("btn_auth") if enabled else palette_color("divider")
+        bg = palette_color("surface2") if enabled else palette_color("disabled_bg")
+        text_col = palette_color("text") if enabled else palette_color("disabled_text")
+        dim_col = palette_color("text_dim") if enabled else palette_color("disabled_text")
+        hover_bg = palette_color("input_border") if enabled else palette_color("disabled_bg")
+
+        frame = ctk.CTkFrame(parent, width=w, height=h, corner_radius=10, fg_color=bg, border_color=border, border_width=2)
+
+        icon_lbl = ctk.CTkLabel(frame, text=icon, font=("Segoe UI Emoji", 18), text_color=text_col, fg_color="transparent")
+        icon_lbl.place(x=24, rely=0.5, anchor="center")
+        title_lbl = ctk.CTkLabel(frame, text=title, font=("sans", 14, "bold"), text_color=text_col, fg_color="transparent")
+        title_lbl.place(x=46, rely=0.32, anchor="w")
+        desc_lbl = ctk.CTkLabel(frame, text=desc, font=("sans", 11), text_color=dim_col, fg_color="transparent")
+        desc_lbl.place(x=46, rely=0.68, anchor="w")
+
+        if enabled:
+            for widget in [frame, icon_lbl, title_lbl, desc_lbl]:
+                widget.bind("<Enter>", lambda e, f=frame: f.configure(fg_color=hover_bg))
+                widget.bind("<Leave>", lambda e, f=frame: f.configure(fg_color=bg))
+                widget.bind("<Button-1>", lambda e, cmd=command: cmd())
+        else:
+            nc_lbl = ctk.CTkLabel(frame, text="Not configured", font=("sans", 11), text_color=dim_col, fg_color="transparent")
+            nc_lbl.place(x=w - 16, rely=0.5, anchor="e")
+
+        return frame
 
     def call_email_login(self):
         email = self.app.get_email()

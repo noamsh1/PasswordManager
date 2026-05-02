@@ -50,7 +50,9 @@ class Client:
         if self.is_email_verified:
             return True
 
-    def signup(self, username, password, email, phone_number):
+    def signup(self, username, password, email):
+        phone_number = "0" # Placeholder for phone number, not used in current implementation
+
         self.auth_options = {}
         if self.bin_voice_signature:
             voice_signature = base64.b64encode(self.bin_voice_signature).decode()
@@ -135,6 +137,8 @@ class Client:
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["reset_ok_msg"]:
             self.ui.password_reset_successful(self.username)
+        elif cmd == self.protocol_handler.server_messages["weak_password_msg"]:
+            self.ui.password_reset_unsuccessful()
 
     def get_auth_options(self):
         self.build_and_send_message(self.protocol_handler.client_messages["get_auth_options_msg"], f"{self.username}")
@@ -187,6 +191,9 @@ class Client:
     def start_voice_recording(self):
         self.audio_manager.start_recording()
 
+    def stop_voice_recording(self):
+        self.audio_manager.stop_recording()
+
     def recording_stopped(self):
         self.ui.recording_stopped()
 
@@ -225,12 +232,12 @@ class Client:
     def get_face_encoding(self, rgb_frame):
         self.bin_face_encoding = FaceRecognizer.get_face_encodings(rgb_frame)
         if self.bin_face_encoding:
-            if self.status == Status.LOGGING_IN:
+            if self.status == Status.LOGGING_IN or self.status == Status.RECOVERING_PASSWORD:
                 self.face_recognition()
             else:
                 self.ui.face_located()
         else:
-            if self.status != Status.LOGGING_IN:
+            if self.status != Status.LOGGING_IN or self.status == Status.RECOVERING_PASSWORD:
                 self.ui.no_face_located()
 
     def setup_face_recognition(self):

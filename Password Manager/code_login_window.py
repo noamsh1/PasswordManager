@@ -1,7 +1,8 @@
 import customtkinter as ctk
+from color_palettes import palette_color
 
-WINDOW_WIDTH = 710
-WINDOW_HEIGHT = 400
+WINDOW_WIDTH = 440
+WINDOW_HEIGHT = 420
 CODE_LENGTH = 8
 
 class CodeLoginWindow(ctk.CTkToplevel):
@@ -14,30 +15,39 @@ class CodeLoginWindow(ctk.CTkToplevel):
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
         self.wm_title("Password Manager")
+        self.configure(fg_color=palette_color("surface"))
 
-        self.title = ctk.CTkLabel(self, anchor= "center", text= "Login With Code", font= ("sans", 50), text_color= "black")
-        self.title.place(x= 355, y= 25, anchor= "center")
+        self.icon_circle = ctk.CTkFrame(self, width=56, height=56, corner_radius=28, fg_color=palette_color("accent"))
+        self.icon_circle.place(relx=0.5, y=45, anchor="center")
+        self.icon = ctk.CTkLabel(self.icon_circle, width=0, height=0, text="📧", fg_color="transparent", text_color=palette_color("surface"), font=("Segoe UI Emoji", 22))
+        self.icon.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.entries_frame = ctk.CTkFrame(self, width = 500, height = 100)
-        self.entries_frame.place(x = 175, y = 150)
+        self.title = ctk.CTkLabel(self, anchor="center", text="Enter Verification Code", font=("sans", 24, "bold"), text_color=palette_color("text"))
+        self.title.place(relx=0.5, y=95, anchor="center")
+        self.subtitle = ctk.CTkLabel(self, anchor="center", text=f"A code was sent to {email}", font=("sans", 13), text_color=palette_color("text_dim"))
+        self.subtitle.place(relx=0.5, y=122, anchor="center")
+
+        self.entries_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.entries_frame.place(relx=0.5, y=170, anchor="n")
         self.entries = []
         for i in range(CODE_LENGTH):
-            entry = ctk.CTkEntry(self.entries_frame, width = 40, height=50, justify="center", font=("sans", 20))
-            entry.grid(row = 0, column = i, padx = 10, pady = 20)
-            entry.bind("<KeyPress>", lambda event, index = i: self._handle_keypress(event, index))
+            entry = ctk.CTkEntry(self.entries_frame, width=40, height=50, corner_radius=8, justify="center", font=("sans", 20, "bold"), fg_color=palette_color("input_bg"), border_color=palette_color("input_border"), text_color=palette_color("text"))
+            entry.grid(row=0, column=i, padx=4, pady=10)
+            entry.bind("<KeyPress>", lambda event, index=i: self._handle_keypress(event, index))
             self.entries.append(entry)
 
-        self.enter_code_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Enter Code", text_color= "black", border_color= "green", command = self.call_check_code)
-        self.enter_code_button.place(x = 340, y = 300)
+        self.enter_code_button = ctk.CTkButton(self, width=380, height=44, corner_radius=10, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="Verify Code", text_color=palette_color("surface"), font=("sans", 16), command=self.call_check_code)
+        self.enter_code_button.place(relx=0.5, y=285, anchor="center")
 
-        self.resend_code_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Resend Code", text_color= "black", border_color= "green", state = "disabled", command = self.call_resend_code)
-        self.resend_code_button.place(x = 500, y = 300)
+        self.resend_code_button = ctk.CTkButton(self, width=120, height=28, text="Resend code", text_color=palette_color("text_dim"), fg_color=palette_color("surface"), hover_color=palette_color("surface"), font=("sans", 13), state="disabled", command=self.call_resend_code)
+        self.resend_code_button.bind("<Enter>", lambda e: self.resend_code_button.configure(text_color=palette_color("accent")))
+        self.resend_code_button.bind("<Leave>", lambda e: self.resend_code_button.configure(text_color=palette_color("text_dim")))
+        self.resend_code_button.place(relx=0.5, y=325, anchor="center")
 
-        self.msg_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 20), text_color= "red")
-        self.msg_text.place(x = 355, y = 360, anchor= "center")
-        
-        self.transient(self.app.window)
-        self.lift()
+        self.msg_text = ctk.CTkLabel(self, anchor="center", text="", font=("sans", 14), text_color=palette_color("error"))
+        self.msg_text.place(relx=0.5, y=365, anchor="center")
+
+        self.grab_set()
 
     def _handle_keypress(self, event, index):
         current_entry = self.entries[index]
@@ -79,28 +89,28 @@ class CodeLoginWindow(ctk.CTkToplevel):
         self.app.call_check_code(code)
 
     def incorrect_code_feedback(self):
-        self.msg_text.configure(text= "Code Incorrect")
+        self.msg_text.configure(text="Code Incorrect")
         for entry in self.entries:
-            entry.configure(border_color = "red", border_width = 3)
+            entry.configure(border_color=palette_color("error"), border_width=3)
 
     def display_code_expired_msg(self):
-        self.display_error("Code Expired! Request another code")
+        self.display_error("Code Expired! Request another code.")
         for entry in self.entries:
             entry.delete(0, "end")
-        self.resend_code_button.configure(state = "normal")
+        self.resend_code_button.configure(state="normal")
 
     def display_error(self, msg):
-        self.msg_text.configure(text= msg, text_color= "red")
+        self.msg_text.configure(text=msg, text_color=palette_color("error"))
 
     def display_msg(self, msg):
-        self.msg_text.configure(text= msg, text_color= "black")
+        self.msg_text.configure(text=msg, text_color=palette_color("text"))
 
     def call_resend_code(self):
         self.app.request_login_code(self.client_email)
 
     def code_resent(self):
         self.display_msg("Code Sent")
-        self.resend_code_button.configure(state= "disabled")
+        self.resend_code_button.configure(state="disabled")
 
     def close_window(self):
         self.destroy()

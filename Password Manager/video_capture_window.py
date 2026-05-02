@@ -1,7 +1,8 @@
 import customtkinter as ctk
+from color_palettes import palette_color
 
-WINDOW_WIDTH = 710
-WINDOW_HEIGHT = 710
+WINDOW_WIDTH = 520
+WINDOW_HEIGHT = 620
 
 class VideoCaptureWindow(ctk.CTkToplevel):
 
@@ -12,33 +13,40 @@ class VideoCaptureWindow(ctk.CTkToplevel):
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
         self.resizable(False, False)
+        self.configure(fg_color=palette_color("surface"))
 
         self.protocol("WM_DELETE_WINDOW", self.close_window)
 
-        if is_setup:
-            self.title = ctk.CTkLabel(self, anchor= "center", text= "Setup Face Recognition", font= ("sans", 50), text_color= "black")
-        else:
-            self.title = ctk.CTkLabel(self, anchor= "center", text= "Face Recognition", font= ("sans", 50), text_color= "black")
-        self.title.place(x= 355, y= 25, anchor= "center")
+        # ── Icon circle ──
+        self.icon_circle = ctk.CTkFrame(self, width=56, height=56, corner_radius=28, fg_color=palette_color("accent"))
+        self.icon_circle.place(relx=0.5, y=38, anchor="center")
+        self.icon_label = ctk.CTkLabel(self.icon_circle, width=0, height=0, text="📷", fg_color="transparent", text_color=palette_color("surface"), font=("Segoe UI Emoji", 20))
+        self.icon_label.place(relx=0.5, rely=0.45, anchor="center")
 
+        title_text = "Setup Face Recognition" if is_setup else "Face Recognition"
+        self.title_label = ctk.CTkLabel(self, anchor="center", text=title_text, font=("sans", 22, "bold"), text_color=palette_color("text"))
+        self.title_label.place(relx=0.5, y=85, anchor="center")
+
+        # ── Camera dropdown ──
         self.cameras_list = cameras_list
-        self.camera_dropdown = ctk.CTkComboBox(self, width= 200, height= 30, values= self.cameras_list, dropdown_font= ("sans", 16), command= self.select_camera)
+        self.camera_dropdown = ctk.CTkComboBox(self, width=240, height=34, corner_radius=8, fg_color=palette_color("input_bg"), border_color=palette_color("input_border"), button_color=palette_color("accent"), button_hover_color=palette_color("accent_hover"), dropdown_fg_color=palette_color("surface"), dropdown_hover_color=palette_color("selected_row"), text_color=palette_color("text"), dropdown_text_color=palette_color("text"), font=("sans", 13), dropdown_font=("sans", 13), values=self.cameras_list, command=self.select_camera)
         self.camera_dropdown.set("Select a camera...")
-        self.camera_dropdown.place(x= 355, y= 75, anchor= "center")
+        self.camera_dropdown.place(relx=0.5, y=118, anchor="center")
 
-        self.video_label = ctk.CTkLabel(self, text= "")
-        self.video_label.place(x= 355, y= 100, anchor= "n")
+        # ── Video feed ──
+        self.video_label = ctk.CTkLabel(self, text="", fg_color="transparent", width=460, height=380)
+        self.video_label.place(relx=0.5, y=145, anchor="n")
 
         self.is_loop_running = False
 
         if is_setup:
-            self.setup_face_recognition_button = ctk.CTkButton(self, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Setup face recognition", text_color= "black", border_color= "green", state= "disabled", command= self.setup_face_recognition)
-            self.setup_face_recognition_button.place(x= 355, y= 650, anchor= "center")
+            self.setup_face_recognition_button = ctk.CTkButton(self, width=460, height=38, corner_radius=10, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="Setup Face Recognition", text_color=palette_color("surface"), font=("sans", 14), state="disabled", command=self.setup_face_recognition)
+            self.setup_face_recognition_button.place(relx=0.5, y=565, anchor="center")
         else:
-            self.error_text = ctk.CTkLabel(self, anchor= "center", text= "", font= ("sans", 20), text_color= "red")
-            self.error_text.place(x= 355, y= 650, anchor= "center")
+            self.error_text = ctk.CTkLabel(self, anchor="center", text="", font=("sans", 14), text_color=palette_color("error"))
+            self.error_text.place(relx=0.5, y=565, anchor="center")
 
-        self.grab_set() 
+        self.grab_set()
 
 
     def select_camera(self, choice):
@@ -77,7 +85,7 @@ class VideoCaptureWindow(ctk.CTkToplevel):
         
 
     def display_camera_error(self):
-        self.video_label.configure(text= "Camera not found", image= None)
+        self.video_label.configure(text="Camera not found", image=None, text_color=palette_color("error"))
 
     def display_face_recognition_error(self, msg):
         if hasattr(self, "error_text"):

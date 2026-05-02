@@ -1,7 +1,8 @@
 import customtkinter as ctk
 import threading
-from PIL import Image
+from PIL import Image, ImageOps, ImageDraw
 from video_manager import VideoManager
+from audio_manager import MAX_RECORD_SECONDS
 from signup_window import SignupWindow
 from login_window import LoginWindow
 from auth_select_window import AuthSelectWindow
@@ -17,6 +18,8 @@ from site_info_window import SiteInfoWindow
 from change_password_window import ChangePasswordWindow
 from site_recovery_window import SiteRecoveryWindow
 from settings_menu_frame import SettingsMenuFrame
+from home_frame import HomeFrame
+from color_palettes import palette_color
 from CTkListbox import *
 from CTkMessagebox import *
 from client_status import Status
@@ -30,23 +33,44 @@ class UI:
         self.window = ctk.CTk()
         self.window.wm_title("Password Manager")
         self.window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-        self.window.resizable(False, False)
+        self.window.minsize(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.window.resizable(True, True)
+        self.window.configure(fg_color=palette_color("bg"))
         self.client = client
 
-        self.title = ctk.CTkLabel(self.window, anchor= "center", text= "Password Manager", font= ("sans", 50), text_color= "black")
-        self.title.place(x= 100, y= 50, anchor= "nw")
+        # ── Top navbar ──
+        self.navbar = ctk.CTkFrame(self.window, height=60, fg_color=palette_color("surface"), corner_radius=0)
+        self.navbar.pack(side="top", fill="x")
+        self.navbar.pack_propagate(False)
 
-        self.login_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Login", text_color= "black", border_color= "green", command= self.run_login_window)
-        self.login_button.place(x = 900, y= 50)
+        # ── Content area below navbar ──
+        self.content_area = ctk.CTkFrame(self.window, fg_color="transparent")
+        self.content_area.pack(side="top", fill="both", expand=True)
+
+        nav_icon = ctk.CTkFrame(self.navbar, width=34, height=34, corner_radius=17, fg_color=palette_color("accent"))
+        nav_icon.place(x=24, rely=0.5, anchor="w")
+        nav_icon_lbl = ctk.CTkLabel(nav_icon, width=0, height=0, text="🔒", fg_color="transparent", text_color=palette_color("surface"), font=("Segoe UI Emoji", 14))
+        nav_icon_lbl.place(relx=0.5, rely=0.5, anchor="center")
+
+        nav_title = ctk.CTkLabel(self.navbar, text="Password Manager", font=("sans", 18, "bold"), text_color=palette_color("text"))
+        nav_title.place(x=66, rely=0.5, anchor="w")
+
+        self.login_button = ctk.CTkButton(self.navbar, width=110, height=36, corner_radius=18, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="Login", text_color=palette_color("surface"), font=("sans", 14), command=self.run_login_window)
+        self.login_button.place(relx=1.0, x=-260, rely=0.5, anchor="center")
 
         self.login_window = None
-
         self.reset_password_window = None
 
-        self.signup_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Signup", text_color= "black", border_color= "green", command= self.run_signup_window)
-        self.signup_button.place(x= 700, y= 50)
+        self.signup_button = ctk.CTkButton(self.navbar, width=110, height=36, corner_radius=18, fg_color=palette_color("btn_secondary"), hover_color=palette_color("input_border"), text="Sign Up", text_color="white", font=("sans", 14), command=self.run_signup_window)
+        self.signup_button.place(relx=1.0, x=-130, rely=0.5, anchor="center")
 
         self.signup_window = None
+
+        self.settings_menu = SettingsMenuFrame(self, corner_radius=0)
+        self.settings_menu.place(relx=1.0, rely=0, relheight=1, relwidth=0.2, anchor="nw")
+
+        self.settings_button = ctk.CTkButton(self.navbar, width=36, height=36, corner_radius=18, text="\uE713", text_color=palette_color("text_dim"), fg_color="transparent", hover_color=palette_color("surface2"), font=("Segoe MDL2 Assets", 16), command=self.settings_menu.toggle)
+        self.settings_button.place(relx=1.0, x=-36, rely=0.5, anchor="center")
 
         self.auth_select_window = None
         self.code_login_window = None
@@ -59,31 +83,47 @@ class UI:
 
         self.security_questions_window = None
 
-        self.register_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Register Site", text_color= "black", border_color= "green", command= self.run_site_registration_window)
-        self.username_text = ctk.CTkLabel(self.window, anchor= "center", text= "", font= ("sans", 25), text_color= "black")
+        # ── Home content (pre-login) ──
+        self.home_frame = HomeFrame(self.content_area)
+        self.home_frame.place(relx=0.5, relwidth=1, relheight=1, anchor="n")
+
+        # ── Dashboard widgets (post-login, created but not placed) ──
+        self.dashboard_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
+        self.dashboard_frame.pack_propagate(False)
+
+        btn_h = 38
+        btn_r = 10
+        btn_font = ("sans", 13)
+
+        self.btn_row = ctk.CTkFrame(self.dashboard_frame, fg_color="transparent")
+
+        self.register_site_button = ctk.CTkButton(self.btn_row, height=btn_h, corner_radius=btn_r, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="+ Register Site", text_color=palette_color("surface"), font=btn_font, command=self.run_site_registration_window)
+        self.username_text = ctk.CTkLabel(self.navbar, anchor="center", text="", font=("sans", 15), text_color=palette_color("text"))
         self.site_registration_window = None
+
+        self.site_info_button = ctk.CTkButton(self.btn_row, height=btn_h, corner_radius=btn_r, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="View Info", text_color=palette_color("surface"), font=btn_font, state="disabled", command=self.show_selected_site_info)
+        self.site_info_window = None
+
+        self.change_password_button = ctk.CTkButton(self.btn_row, height=btn_h, corner_radius=btn_r, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="Change Password", text_color=palette_color("surface"), font=btn_font, state="disabled", command=self.initiate_change_password_window)
+        self.change_password_window = None
+
+        self.recover_site_button = ctk.CTkButton(self.btn_row, height=btn_h, corner_radius=btn_r, fg_color=palette_color("accent"), hover_color=palette_color("accent_hover"), text="Recover Site", text_color=palette_color("surface"), font=btn_font, command=self.run_site_recovery_window)
+        self.site_recovery_window = None
+
+        self.delete_site_button = ctk.CTkButton(self.btn_row, height=btn_h, corner_radius=btn_r, fg_color=palette_color("error"), hover_color=("#dc2626", "#b91c1c"), text="Delete Site", text_color="white", font=btn_font, state="disabled", command=self.delete_site)
 
         self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", self.load_registered_sites)
-        self.search_box = ctk.CTkEntry(self.window, width = 950, height= 30, corner_radius= 3, placeholder_text= "Search site", textvariable= self.search_var)
-        self.delete_search_button = ctk.CTkButton(self.window, width= 50, height= 30, corner_radius= 3, text= "Delete search", command= lambda: self.search_var.set(""))
+        self.search_frame = ctk.CTkFrame(self.dashboard_frame, fg_color="transparent")
+        self.search_icon_label = ctk.CTkLabel(self.search_frame, width=36, height=36, corner_radius=10, text="\U0001F50E", font=("Segoe UI Emoji", 16), fg_color="transparent", text_color=palette_color("text_dim"))
+        self.search_box = ctk.CTkEntry(self.search_frame, height=36, corner_radius=10, placeholder_text="Search sites...", fg_color=palette_color("surface"), border_color=palette_color("input_border"), text_color=palette_color("text"), placeholder_text_color=palette_color("placeholder"), font=("sans", 13), textvariable=self.search_var)
+        self.delete_search_button = ctk.CTkButton(self.search_frame, width=36, height=36, corner_radius=10, text="✕", font=("sans", 14), fg_color=palette_color("surface2"), hover_color=palette_color("input_border"), text_color=palette_color("text_dim"), command=lambda: self.search_var.set(""))
 
         self.current_site_selection = None
         self.registered_sites_list = []
-        self.registered_sites_listbox = CTkListbox(self.window, height= 350, width= 1000, command= self.enable_site_buttons)
-
-        self.site_info_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "View site info", text_color= "black", border_color= "green", state= "disabled", command= self.show_selected_site_info)
-        self.site_info_window = None
-
-        self.change_password_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Change site password", text_color= "black", border_color= "green", state= "disabled", command= self.initiate_change_password_window)
-        self.change_password_window = None
-
-        self.delete_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "dark red", hover_color= "red", text= "Delete site", text_color= "black", border_color= "dark red", state= "disabled", command= self.delete_site)
+        self.registered_sites_listbox = CTkListbox(self.dashboard_frame, command=self.enable_site_buttons)
 
         self.password_preferences_window = None
-
-        self.recover_site_button = ctk.CTkButton(self.window, width= 150, height= 50, corner_radius= 5, fg_color= "green", hover_color= "light green", text= "Recover site", text_color= "black", border_color= "green", command= self.run_site_recovery_window)
-        self.site_recovery_window = None
 
 
     def run(self):
@@ -96,8 +136,8 @@ class UI:
         else:
             self.signup_window.focus()
 
-    def call_signup(self, username, password, email, phone_number):
-        self.client.signup(username, password, email, phone_number)
+    def call_signup(self, username, password, email):
+        self.client.signup(username, password, email)
 
     def display_signup_error(self, msg):
         self.signup_window.display_signup_error(msg)
@@ -197,6 +237,9 @@ class UI:
         self.reset_password_window.close_window()
         self.setup_user(username)
 
+    def password_reset_unsuccessful(self):
+        self.reset_password_window.display_error("Password is not strong enough")
+
     def run_code_login_window(self, client_email):
         if self.code_login_window is None or not self.code_login_window.winfo_exists():
             self.code_login_window = CodeLoginWindow(self, client_email)
@@ -250,7 +293,7 @@ class UI:
                 is_setup = True
             else:
                 is_setup = False
-            self.voice_recording_window = VoiceRecordingWindow(self, is_setup)
+            self.voice_recording_window = VoiceRecordingWindow(self, is_setup, MAX_RECORD_SECONDS)
             self.voice_recording_window.focus()
             self.voice_recording_window.lift()
         else:
@@ -259,6 +302,9 @@ class UI:
 
     def call_start_recording(self):
         self.client.start_voice_recording()
+
+    def call_stop_recording(self):
+        self.client.stop_voice_recording()
 
     def recording_stopped(self):
         self.voice_recording_window.recording_stopped()
@@ -327,11 +373,22 @@ class UI:
             rgb_mirrored_frame = data[1]
             self.rgb_small_frame = data[2]
             if self.video_capture_window is not None:
+                image_size = (460, 380)
                 pil_image = Image.fromarray(rgb_mirrored_frame)
-                image = ctk.CTkImage(light_image= pil_image, dark_image= pil_image, size= (640, 480))
+                pil_image = ImageOps.fit(pil_image, image_size)
+                pil_image = self._round_image_corners(pil_image, 10)
+                image = ctk.CTkImage(light_image= pil_image, dark_image= pil_image, size= image_size)
                 self.video_capture_window.update_frame(image)
         else:
             self.video_capture_window.display_camera_error()
+            self.current_camera_index = -1
+
+    def _round_image_corners(self, image, radius):
+        mask = Image.new("L", image.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.rounded_rectangle([0, 0, image.size[0], image.size[1]], radius=radius, fill=255)
+        image.putalpha(mask)
+        return image
 
     def call_face_recognition(self):
         if self.rgb_small_frame is not None:
@@ -379,26 +436,31 @@ class UI:
     def setup_user(self, username):
         self.login_button.place_forget()
         self.signup_button.place_forget()
+        self.home_frame.place_forget()
 
-        self.username_text.configure(text= username)
-        self.username_text.place(x= 900, y= 75)
-        self.register_site_button.place(x= 150, y= 150)
-        self.site_info_button.place(x= 350, y= 150)
-        self.change_password_button.place(x= 550, y= 150)
-        self.delete_site_button.place(x= 750, y= 150)
-        self.recover_site_button.place(x= 950, y= 150)
+        # Show username in navbar
+        self.username_text.configure(text= f"Welcome, {username}")
+        self.username_text.place(relx=1.0, x=-75, rely=0.5, anchor="e")
+
+        # Show dashboard
+        self.dashboard_frame.place(x=0, y=0, relwidth=1, relheight=1)
+
+        # Button row
+        self.btn_row.pack(fill="x", padx=30, pady=(20, 10))
+        for btn in (self.register_site_button, self.site_info_button, self.change_password_button, self.recover_site_button, self.delete_site_button):
+            btn.pack(side="left", padx=10, expand=True, fill="x")
+
+        # Search bar
+        self.search_frame.pack(fill="x", padx=30, pady=(10, 4))
+        self.search_icon_label.pack(side="left")
+        self.search_box.pack(side="left", fill="x", expand=True)
+        self.delete_search_button.pack(side="left", padx=(6, 0))
+
+        # Site list
+        self.registered_sites_listbox.pack(fill="both", padx=30, pady=(0, 20), expand=True)
 
         self.get_registered_sites()
-        self.search_box.place(x= 100, y= 220)
-        self.delete_search_button.place(x= 1050, y= 220)
-        self.registered_sites_listbox.place(x= 100, y= 250)
-
-        self.settings_menu = SettingsMenuFrame(self, self.client.auth_options, corner_radius = 0)
-        self.settings_menu.place(relx=1.0, rely=0, relheight=1, relwidth= 0.2,anchor="nw")
-
-        self.settings_button = ctk.CTkButton(self.window, width= 40, text= "⚙", text_color= "black", fg_color= "transparent", command= self.settings_menu.toggle)
-        self.settings_button.place(x=1150, y=10)
-
+        self.settings_menu.show_auth_options(self.client.auth_options)
         self.client.change_status(Status.NORMAL)
 
     def run_site_registration_window(self):
