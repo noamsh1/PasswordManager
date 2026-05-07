@@ -6,27 +6,26 @@ from password_handler import PasswordHandler, DEFAULT_SETTINGS
 from email_manager import EmailManager, EMAIL_CODE_EXPIRATION_TIME
 from voice_authenticator import VoiceAuthenticator
 from face_recognizer import FaceRecognizer
-import uuid
 import datetime
 import base64
 import json
-import hashlib
 
 class Server:
 
 
     def __init__(self):
-        self.conn_manager = ServerConnectionManager()
-        self.socket = self.conn_manager.server_socket
-        self.protocol_handler = ServerProtocolHandler()
-        self.messages_to_send = []
-        self.user_manager = UserManager()
-        self.db_manager = DataBase()
-        self.email_manager = EmailManager()
-        self.voice_authenticator = VoiceAuthenticator()
-        self.conn_code = {}
+        self.conn_manager = ServerConnectionManager()   # ServerConnectionManager object
+        self.socket = self.conn_manager.server_socket   # The server socket
+        self.protocol_handler = ServerProtocolHandler()    # ServerProtocolHandler object
+        self.messages_to_send = []    # list of scheduled messages to send
+        self.user_manager = UserManager()    # UserManager object
+        self.db_manager = DataBase()    # DataBase object
+        self.email_manager = EmailManager()    # EmailManager object
+        self.voice_authenticator = VoiceAuthenticator()    # VoiceAuthenticator object
+        self.conn_code = {}    # dictionary of the codes sent to the clients' emails by the clients' socket
 
     def run(self):
+        """Server main loop"""
         print(f"Server is running on private IP {self.conn_manager.get_private_ip()}")
         while True:
             ready_to_read = self.conn_manager.read_from_socket()
@@ -61,6 +60,7 @@ class Server:
             self.send_messages_to_clients()
 
     def handle_client_message(self, conn, cmd, data):
+        """Receives conn, cmd and data, and calls the right method that handles the cmd."""
         if cmd == self.protocol_handler.client_messages["login_msg"]:
             self.handle_login_message(conn, data)
         elif cmd == self.protocol_handler.client_messages["signup_msg"]:
@@ -108,6 +108,9 @@ class Server:
 
 
     def handle_login_message(self, conn, data):
+        """Receives conn and data, and handles the client's login attempt.\n
+        Sends an answer to the client. Possible Answers:\n
+        login_ok, username_invalid, incorrect_password, timeout."""
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
@@ -133,17 +136,12 @@ class Server:
                 else:
                     self.build_and_queue_message(conn, "username_invalid_msg", "")
 
-        # if self.user_manager.does_user_exist(username):
-        #     if self.user_manager.user_dict[username].password == password:
-        #         self.user_manager.logged_users[conn] = username
-        #         self.build_and_queue_message(conn, "login_ok_msg", "")
-        #     else:
-        #         self.build_and_queue_message(conn, "incorrect_password_msg", "")
-        # else:
-        #     self.build_and_queue_message(conn, "username_invalid_msg", "")
-
 
     def handle_signup_message(self, conn, data):
+        """Receives conn and data, and handles the client's signup.\n
+        If all the needed signup data was received, Saves the user in the database.\n
+        Sends an answer to the client. Possible Answers:\n
+        signup_ok, user_exists, weak_password."""
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         password = data_list[1]
@@ -175,21 +173,16 @@ class Server:
                 else:
                     self.build_and_queue_message(conn, "signup_ok_msg", "")
 
-        # if self.user_manager.does_user_exist(username):
-        #     self.build_and_queue_message(conn, "user_exists_msg", "")
-        # elif not self.user_manager.is_strong_password(password):
-        #     self.build_and_queue_message(conn, "weak_password_msg", "")
-        # else:
-        #     self.user_manager.add_user(username, password)
-        #     self.build_and_queue_message(conn, "signup_ok_msg", "")
-
 
     def handle_security_questions_msg(self, conn, data):
+        """Receives conn and data, and sends the user the list of security questions they can answer."""
         security_questions_list = self.db_manager.get_security_questions_list()
         security_questions_str = DATA_DELIMITER.join(security_questions_list)
         self.build_and_queue_message(conn, "security_questions_list_msg", security_questions_str)
 
     def handle_my_security_questions_msg(self, conn, data):
+        """Receives conn and data, and sends the list of the user's security question to the client.
+        If the username is invalid, responds with username_invalid instead."""
         if self.db_manager.does_user_exist(data):
             user_questions_list = self.db_manager.get_user_security_questions(data)
             user_questions_str = DATA_DELIMITER.join(user_questions_list)
@@ -198,6 +191,9 @@ class Server:
             self.build_and_queue_message(conn, "username_invalid_msg", "")
 
     def handle_check_security_answers_msg(self, conn, data):
+        """Receives conn and data, and handles the request to check their security answers.\n
+        Sends an answer to the client. Possible Answers:\n
+        security_answers_correct, security_answers_incorrect, timeout"""
         data_list = self.protocol_handler.split_data(data)
         username, *answers_list = data_list
         if self.user_manager.is_user_in_timeout(username):
@@ -214,6 +210,8 @@ class Server:
                     self.build_and_queue_message(conn, "security_answers_incorrect_msg", "")
 
     def handle_reset_password_msg(self, conn, data):
+        """Receives conn and data, and handles the client's request to reset the their password to the app.\n
+        If """
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         new_password = data_list[1]

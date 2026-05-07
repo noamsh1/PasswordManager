@@ -76,41 +76,35 @@ PROTOCOL_CLIENT = {
 class ProtocolHandler:
 
     def __init__(self):
-        self.server_messages = PROTOCOL_SERVER
-        self.client_messages = PROTOCOL_CLIENT
+        self.server_messages = PROTOCOL_SERVER # Dictionary of all server side protocol messages
+        self.client_messages = PROTOCOL_CLIENT # Dictionary of all client side protocol messages
 
 
     def build_message(self, cmd, data):
+        """Method receives command and data and returns a valid protocol message built from them"""
         full_msg = ""
         cmd_len = len(cmd)
         data_len = len(data)
-        if self.check_validation(cmd, data):
-            return ERROR_RETURN
-        else:
-            full_msg += cmd + " " * (CMD_FIELD_LENGTH - cmd_len) + DELIMITER + "0" * (LENGTH_FIELD_LENGTH - len(str(data_len))) + str(data_len) + DELIMITER + data
+        full_msg += cmd + " " * (CMD_FIELD_LENGTH - cmd_len) + DELIMITER + "0" * (LENGTH_FIELD_LENGTH - len(str(data_len))) + str(data_len) + DELIMITER + data
         return full_msg
 
     def parse_message(self, data):
+        """Method receives a message, parses it according to protocol and checks its validation.
+        Returns the cmd and data of the message if valid"""
         data_list = data.split(DELIMITER)
         if len(data_list) != 3:
             return ERROR_RETURN, ERROR_RETURN
         cmd = data_list[0].replace(" ", "")
         msg_len = data_list[1]
         msg = data_list[2]
-        if self.check_validation(cmd, msg):
+        if not self.check_validation(cmd, msg):
             return ERROR_RETURN, ERROR_RETURN
         else:	
             return cmd, msg
     
     def check_validation(self):
-        return 
+        return
     
     def split_data(self, data):
+        """Method receives a message and splits it according to protocol"""
         return data.split(DATA_DELIMITER)
-    
-# protocolhandler = ProtocolHandler()
-# message = protocolhandler.build_message("SIGNUP", f"Noam{DATA_DELIMITER}123")
-# print(message)
-# cmd, data = protocolhandler.parse_message(message)
-# print(cmd)
-# print(data)
