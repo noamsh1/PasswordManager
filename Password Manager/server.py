@@ -211,7 +211,8 @@ class Server:
 
     def handle_reset_password_msg(self, conn, data):
         """Receives conn and data, and handles the client's request to reset the their password to the app.\n
-        If """
+        If the received password is strong enough, the server resets the user's password and responds with reset_ok.
+        Otherwise, the server responds with weak_password."""
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         new_password = data_list[1]
@@ -223,12 +224,14 @@ class Server:
             self.build_and_queue_message(conn, "reset_ok_msg", "")
 
     def handle_get_auth_options_msg(self, conn, data):
+        """Receives conn and data, and sends the client the authentication options available to them."""
         username = data
         auth_options = self.db_manager.get_user_auth_options(username)
         auth_options_str = json.dumps(auth_options)
         self.build_and_queue_message(conn, "your_auth_options_msg", auth_options_str)
 
     def handle_my_email_msg(self, conn, data):
+        """Receives conn and data, and sends the client their registered email address. If no email registered - responds with no_email_registered."""
         try:
             user_email = self.db_manager.get_user_email(data)
             self.build_and_queue_message(conn, "your_email_msg", user_email)
@@ -236,12 +239,15 @@ class Server:
             self.build_and_queue_message(conn, "no_email_registered_msg", "")
 
     def handle_send_code_msg(self, conn, data):
+        """Receives conn and data, and sends a one-time code to the client's email."""
         if data != "":
             code, code_creation_time = self.email_manager.send_login_code_gmail(data)
             self.conn_code[conn] = (code, code_creation_time)
             self.build_and_queue_message(conn, "code_sent_msg", "")
 
     def handle_code_login_msg(self, conn, data):
+        """Receives conn and data, and handles the client's code login attempt.\n
+        Possible responds: code_correct, code_incorrect, code_expired, timeout."""
         sent_code, code_creation_time = self.conn_code[conn]
         current_time = datetime.datetime.now()
         time_diff = current_time - code_creation_time
@@ -265,7 +271,10 @@ class Server:
                 else:
                     self.build_and_queue_message(conn, "code_incorrect_msg", "")
 
+
     def handle_voice_auth_msg(self, conn, data):
+        """Receives conn and data, and handles the client's voice authentication attempt.\n
+        Possible responds: voice_verified, voice_not_verified, timeout."""
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         login_voice_signature = data_list[1]
@@ -286,6 +295,8 @@ class Server:
                     self.build_and_queue_message(conn, "voice_not_verified_msg", "")
 
     def handle_check_face_recognition_msg(self, conn, data):
+        """Receives conn and data, and handles the client's face recognition attempt.
+        Possible responds: face_matches, face_not_matches"""
         data_list = self.protocol_handler.split_data(data)
         username = data_list[0]
         face_encoding_str = data_list[1]
@@ -298,12 +309,14 @@ class Server:
 
 
     def handle_setup_voice_auth_msg(self, conn, data):
+        """Receives conn and data, and sets up voice authentication for the user."""
         user_id = self.user_manager.logged_users[conn]
         bin_voice_signature = base64.b64decode(data)
         self.db_manager.setup_voice_auth(user_id, bin_voice_signature)
         self.build_and_queue_message(conn, "voice_auth_set_msg", "")
 
     def handle_setup_face_recognition_msg(self, conn, data):
+        """Receives conn and data, and sets up face recognition for the user."""
         user_id = self.user_manager.logged_users[conn]
         bin_face_encoding = base64.b64decode(data)
         self.db_manager.setup_face_recognition(user_id, bin_face_encoding)
