@@ -14,7 +14,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
 
     def __init__(self, app, settings=None, site_url=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -24,7 +24,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
         if settings is None:
             settings = DEFAULT_SETTINGS
 
-        self.site_url = site_url
+        self.site_url = site_url    # URL of the site these preferences apply to, or None during registration
 
         self.icon_circle = ctk.CTkFrame(self, width=56, height=56, corner_radius=28, fg_color=palette_color("accent"))
         self.icon_circle.place(relx=0.5, y=45, anchor="center")
@@ -89,6 +89,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
 
 
     def check_inclusion_selection(self, label):
+        """Enforces at least one include checkbox and syncs the start checkbox state."""
         count_active = sum(var.get() for var in self.include_vars.values())
         if count_active < 1:
             self.include_vars[label].set(True)
@@ -104,6 +105,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
                 self.special_allowed_entry.place(x=COL_LEFT, y=self.special_entry_y)
 
     def check_start_selection(self, label):
+        """Enforces at least one start checkbox and toggles the special characters entry."""
         count_active = sum(var.get() for var in self.start_vars.values())
         if count_active < 1:
             self.start_vars[label].set(True)
@@ -114,6 +116,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
                 self.special_allowed_start_entry.place_forget()
 
     def save_preferences(self):
+        """Validates the preferences and sends them to the app."""
         preferences = {}
         try:
             length = int(self.maximum_length_entry.get())
@@ -136,6 +139,7 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
         self.app.save_password_preferences(preferences, self.site_url)
 
     def _remove_duplicates(self, str):
+        """Receives a string and returns it with duplicate characters removed."""
         filtered_set = set(str)
         filtered_string = ""
         for i in filtered_set:
@@ -143,9 +147,11 @@ class PasswordPreferencesWindow(ctk.CTkToplevel):
         return filtered_string
 
     def display_error(self, msg):
+        """Displays an error message in the window."""
         self.error_label.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()
 
 

@@ -13,10 +13,12 @@ THRESHOLD = 0.7
 class VoiceAuthenticator:
     def __init__(self):
         SetLogLevel(-1) # no vosk logs
-        self.model = Model(MODEL_PATH)
-        self.spk_model = SpkModel(SPK_MODEL_PATH)
+        self.model = Model(MODEL_PATH)    # Vosk speech recognition model
+        self.spk_model = SpkModel(SPK_MODEL_PATH)    # Vosk speaker recognition model
 
     def calc_voice_signature(self, voice_file):
+        """Receives a voice file path, processes the audio and returns the voice signature as binary data.
+        Returns None if no voice signature could be extracted."""
         rec = KaldiRecognizer(self.model, SAMPLES_PER_SECOND, self.spk_model)
         wf = wave.open(voice_file, "rb")
         data = wf.readframes(4000)
@@ -32,6 +34,8 @@ class VoiceAuthenticator:
         return bin_voice_signature
     
     def verify_user(self, bin_voice_signature, bin_login_signature):
+        """Receives a stored voice signature and a login voice signature as binary data,
+        compares the two signatures and returns True if they match, False otherwise."""
         v1 = np.frombuffer(bin_voice_signature, dtype = np.float32)
         v2 = np.frombuffer(bin_login_signature, dtype = np.float32)
 

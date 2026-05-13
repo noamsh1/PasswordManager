@@ -9,7 +9,7 @@ class ResetPasswordWindow(ctk.CTkToplevel):
 
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
@@ -57,6 +57,7 @@ class ResetPasswordWindow(ctk.CTkToplevel):
 
 
     def call_reset_password(self):
+        """Validates that both passwords match and sends the reset request."""
         password = self.password_entry.get()
         password2 = self.password_entry_2.get()
         if password != password2:
@@ -81,7 +82,9 @@ class ResetPasswordWindow(ctk.CTkToplevel):
             self.show_password_button_2.configure(text="\uE7B3", command=lambda: self.show_password(2))
 
     def display_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

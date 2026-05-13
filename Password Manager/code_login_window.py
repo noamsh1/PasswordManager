@@ -9,8 +9,8 @@ class CodeLoginWindow(ctk.CTkToplevel):
 
     def __init__(self, app, email, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
-        self.client_email = email
+        self.app = app    # Reference to the UI instance
+        self.client_email = email    # Email address the code was sent to
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -82,35 +82,44 @@ class CodeLoginWindow(ctk.CTkToplevel):
             self.entries[index - 1].focus()
 
     def get_full_code(self):
+        """Returns the full code string by concatenating all entry fields."""
         return "".join(e.get() for e in self.entries)
     
     def call_check_code(self):
+        """Sends the entered code to the app for verification."""
         code = self.get_full_code()
         self.app.call_check_code(code)
 
     def incorrect_code_feedback(self):
+        """Displays an incorrect code error and highlights the entry fields."""
         self.msg_text.configure(text="Code Incorrect")
         for entry in self.entries:
             entry.configure(border_color=palette_color("error"), border_width=3)
 
     def display_code_expired_msg(self):
+        """Displays a code expired error, clears the entries, and enables the resend button."""
         self.display_error("Code Expired! Request another code.")
         for entry in self.entries:
             entry.delete(0, "end")
         self.resend_code_button.configure(state="normal")
 
     def display_error(self, msg):
+        """Displays an error message."""
         self.msg_text.configure(text=msg, text_color=palette_color("error"))
 
     def display_msg(self, msg):
+        """Displays an informational message."""
         self.msg_text.configure(text=msg, text_color=palette_color("text"))
 
     def call_resend_code(self):
+        """Requests a new verification code via the app."""
         self.app.request_login_code(self.client_email)
 
     def code_resent(self):
+        """Displays a confirmation message and disables the resend button."""
         self.display_msg("Code Sent")
         self.resend_code_button.configure(state="disabled")
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

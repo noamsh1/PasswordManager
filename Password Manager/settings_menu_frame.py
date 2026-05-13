@@ -9,8 +9,8 @@ class SettingsMenuFrame(ctk.CTkFrame):
 
         self.pack_propagate(False)
 
-        self.app = app
-        self.is_open = False
+        self.app = app    # Reference to the UI instance
+        self.is_open = False    # Whether the settings panel is currently visible
 
         self.close_button = ctk.CTkButton(self, text="✕", width=30, text_color=palette_color("text_dim"), fg_color="transparent", hover_color=palette_color("surface2"), font=("sans", 14), command=self.toggle)
         self.close_button.place(x=5, y=5)
@@ -26,6 +26,7 @@ class SettingsMenuFrame(ctk.CTkFrame):
 
 
     def toggle(self):
+        """Slides the settings panel in or out."""
         if not self.is_open:
             self.animate_in()
         else:
@@ -47,10 +48,12 @@ class SettingsMenuFrame(ctk.CTkFrame):
             self.after(10, self.animate_out)
 
     def change_theme(self):
+        """Toggles between dark and light mode based on the switch state."""
         mode = "dark" if self.theme_switch.get() else "light"
         ctk.set_appearance_mode(mode)
 
     def show_auth_options(self, auth_options):
+        """Displays buttons for adding unconfigured auth methods."""
         self.auth_divider = ctk.CTkFrame(self, height=2, fg_color=palette_color("input_border"))
         self.auth_divider.pack(fill="x", padx=16, pady=(10, 10))
 
@@ -63,13 +66,17 @@ class SettingsMenuFrame(ctk.CTkFrame):
             self.add_face_recognition_button.pack(pady=8, padx=20, fill="x")
 
     def setup_voice_auth(self):
+        """Opens the voice recording window for voice auth setup."""
         self.app.run_voice_recording_window()
 
     def voice_auth_added(self):
+        """Disables the add voice auth button after setup."""
         self.add_voice_auth_button.configure(state= "disabled")
 
     def setup_face_recognition(self):
+        """Opens the video capture window for face recognition setup."""
         self.app.run_video_capture_window()
 
     def face_recognition_added(self):
+        """Disables the add face recognition button after setup."""
         self.add_face_recognition_button.configure(state= "disabled")

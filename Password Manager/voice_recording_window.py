@@ -11,7 +11,7 @@ class VoiceRecordingWindow(ctk.CTkToplevel):
 
     def __init__(self, app, is_setup, max_recording_time, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
@@ -65,10 +65,11 @@ class VoiceRecordingWindow(ctk.CTkToplevel):
         self.error_label = ctk.CTkLabel(self, anchor="center", text="", font=("sans", 14), text_color=palette_color("error"))
         self.error_label.place(relx=0.5, y=365, anchor="center")
 
-        self.is_recording = False
+        self.is_recording = False    # Whether voice recording is currently active
         self.grab_set()
 
     def call_voice_recording(self):
+        """Starts voice recording and begins the progress bar loop."""
         self.app.call_start_recording()
         self.is_recording = True
         self._start_time = time.time()
@@ -82,6 +83,7 @@ class VoiceRecordingWindow(ctk.CTkToplevel):
         self.error_label.configure(text= "")
 
     def recording_progress_loop(self):
+        """Updates the progress bar while recording until max time is reached."""
         if self.is_recording and self.progress_bar_value < self.max_recording_time:
             self.progress_bar_value = min(time.time() - self._start_time, self.max_recording_time)
             self.progress_bar.set(self.progress_bar_value)
@@ -90,9 +92,11 @@ class VoiceRecordingWindow(ctk.CTkToplevel):
             self.after(10, self.recording_progress_loop)
 
     def call_stop_recording(self):
+        """Stops voice recording via the app."""
         self.app.call_stop_recording()
 
     def recording_stopped(self):
+        """Updates the UI to show that recording has stopped."""
         self.is_recording = False
         self.text_label.configure(text= "Done Recording")
         self.auth_button.configure(state=  "normal")
@@ -100,14 +104,18 @@ class VoiceRecordingWindow(ctk.CTkToplevel):
         self.stop_recording_button.configure(state= "disabled")
 
     def setup_voice_auth(self):
+        """Sends the recorded voice to the server for setup."""
         self.app.call_setup_voice_auth()
 
     def call_voice_auth(self):
+        """Sends the recorded voice to the server for authentication."""
         self.app.call_voice_auth()
 
     def display_error(self, error_msg):
+        """Displays an error message and disables the auth button."""
         self.error_label.configure(text= error_msg)
         self.auth_button.configure(state= "disabled")
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

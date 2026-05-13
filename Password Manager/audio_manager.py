@@ -9,17 +9,18 @@ MAX_RECORD_SECONDS = 10
 class AudioManager:
 
     def __init__(self, client):
-        self.client = client
-        self.chunk = 1024  # Record in chunks of 1024 samples
-        self.sample_format = pyaudio.paInt16  # 16 bits per sample
-        self.channels = 1
-        self.fs = 16000  # Record at 16000 samples per second
-        self.seconds = MAX_RECORD_SECONDS
+        self.client = client    # reference to the UI client for callbacks
+        self.chunk = 1024    # record in chunks of 1024 samples
+        self.sample_format = pyaudio.paInt16    # 16 bits per sample
+        self.channels = 1    # mono audio
+        self.fs = 16000    # record at 16000 samples per second
+        self.seconds = MAX_RECORD_SECONDS    # maximum recording duration in seconds
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.filename = os.path.join(base_dir, "output.wav")
-        self.is_recording = False
+        self.filename = os.path.join(base_dir, "output.wav")    # path to the output WAV file
+        self.is_recording = False    # whether the audio manager is currently recording
 
     def start_recording(self):
+        """Opens an audio stream and starts recording in a separate thread."""
         self.is_recording = True
 
         self.p = pyaudio.PyAudio()
@@ -34,6 +35,7 @@ class AudioManager:
         threading.Thread(target = self._record_loop, daemon= True).start()
 
     def _record_loop(self):
+        """Recording loop that reads audio data from the stream until stopped or the max duration is reached."""
         start_time = time.time()
         while self.is_recording and (time.time() - start_time) < self.seconds:
             data = self.stream.read(self.chunk)
@@ -43,6 +45,7 @@ class AudioManager:
             self.stop_recording()
 
     def stop_recording(self):
+        """Stops the recording, saves the recorded audio to a WAV file and notifies the UI via a callback."""
         self.is_recording = False
 
         # Stop and close the stream 
@@ -67,6 +70,7 @@ class AudioManager:
 
 
     def play_audio(self, filename):
+        """Receives a filename and plays the audio from the WAV file."""
         wf = wave.open(filename, 'rb')
 
         p = pyaudio.PyAudio()

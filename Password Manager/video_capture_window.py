@@ -8,7 +8,7 @@ class VideoCaptureWindow(ctk.CTkToplevel):
 
     def __init__(self, app, cameras_list, is_setup, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
@@ -50,10 +50,12 @@ class VideoCaptureWindow(ctk.CTkToplevel):
 
 
     def select_camera(self, choice):
+        """Starts video recording from the selected camera."""
         index = self.cameras_list.index(choice)
         self.app.start_video_recording(index)
 
     def record_loop(self):
+        """Continuously captures frames from the camera and updates the video label. Stops if the camera is not available."""
         if self.app.cap is None or not self.app.cap.isOpened():
             self.is_loop_running = False
             return
@@ -63,9 +65,11 @@ class VideoCaptureWindow(ctk.CTkToplevel):
         self.after(10, self.record_loop)
 
     def update_frame(self, img):
+        """Updates the video label with a new frame image."""
         self.video_label.configure(text= "", image= img)
 
     def face_recognition_loop(self):
+        """Periodically checks for face detection every 500ms while recording."""
         if self.is_loop_running:
             self.app.call_face_recognition()
             self.after(500, self.face_recognition_loop)
@@ -73,25 +77,31 @@ class VideoCaptureWindow(ctk.CTkToplevel):
             return
         
     def enable_setup_button(self):
+        """Enables the setup/auth button when a face is detected."""
         if hasattr(self, "setup_face_recognition_button"):
             self.setup_face_recognition_button.configure(state= "normal")
 
     def disable_setup_button(self):
+        """Disables the setup/auth button when no face is detected."""
         if hasattr(self, "setup_face_recognition_button"):
             self.setup_face_recognition_button.configure(state= "disabled")
 
     def setup_face_recognition(self):
+        """Sends the captured face encoding to the server for setup."""
         self.app.call_setup_face_recognition()
         
 
     def display_camera_error(self):
+        """Displays a camera not found error in the video label."""
         self.video_label.configure(text="Camera not found", image=None, text_color=palette_color("error"))
 
     def display_face_recognition_error(self, msg):
+        """Displays a face recognition error message."""
         if hasattr(self, "error_text"):
             self.error_text.configure(text= msg)
 
     def close_window(self):
+        """Stops the recording loop, releases the camera, and destroys the window."""
         self.is_loop_running = False
         if self.app.cap:
             self.app.cap.release()

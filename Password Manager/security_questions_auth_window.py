@@ -9,7 +9,7 @@ class SecurityQuestionsAuthWindow(ctk.CTkToplevel):
 
     def __init__(self, app, user_security_questions, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
@@ -27,8 +27,8 @@ class SecurityQuestionsAuthWindow(ctk.CTkToplevel):
         self.subtitle = ctk.CTkLabel(self, anchor="center", text="Answer your security questions to continue", font=("sans", 13), text_color=palette_color("text_dim"))
         self.subtitle.place(relx=0.5, y=125, anchor="center")
 
-        self.user_security_questions = user_security_questions
-        self.answers_entries = []
+        self.user_security_questions = user_security_questions    # List of the user's security questions
+        self.answers_entries = []    # List of entry widgets for each answer
 
         self.questions_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.questions_frame.place(x=30, y=150, relwidth=0.87)
@@ -59,6 +59,7 @@ class SecurityQuestionsAuthWindow(ctk.CTkToplevel):
 
 
     def check_answers(self):
+        """Collects all answers and sends them to the app for verification."""
         answers = []
         for entry in self.answers_entries:
             answer = entry.get()
@@ -71,7 +72,9 @@ class SecurityQuestionsAuthWindow(ctk.CTkToplevel):
 
 
     def display_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

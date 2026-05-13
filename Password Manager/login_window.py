@@ -8,7 +8,7 @@ class LoginWindow(ctk.CTkToplevel):
 
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
@@ -52,6 +52,7 @@ class LoginWindow(ctk.CTkToplevel):
 
 
     def call_login(self):
+        """Reads the username and password entries and sends a login request."""
         username = self.username_entry.get().strip()
         password = self.password_entry.get()
         self.app.call_login(username, password)
@@ -65,12 +66,15 @@ class LoginWindow(ctk.CTkToplevel):
         self.show_password_button.configure(text="\uE7B3", command=self.show_password)
 
     def call_security_questions_window(self):
+        """Requests the user's security questions for password recovery."""
         username = self.username_entry.get()
         self.app.call_get_user_security_questions(username)
 
     def display_login_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text= msg)
 
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

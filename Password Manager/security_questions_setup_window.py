@@ -9,7 +9,7 @@ class SecurityQuestionsSetupWindow(ctk.CTkToplevel):
 
     def __init__(self, app, security_questions, answers_dict = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.wm_title("Password Manager")
@@ -34,9 +34,9 @@ class SecurityQuestionsSetupWindow(ctk.CTkToplevel):
         self.questions_frame.columnconfigure(0, weight=0)
         self.questions_frame.columnconfigure(1, weight=1)
 
-        self.security_questions = security_questions
-        self.check_vars = []
-        self.questions_entries = []
+        self.security_questions = security_questions    # List of available security questions
+        self.check_vars = []    # List of BooleanVar for each question checkbox
+        self.questions_entries = []    # List of entry widgets for each question's answer
 
         for i in range(len(security_questions)):
             question = security_questions[i]
@@ -63,6 +63,7 @@ class SecurityQuestionsSetupWindow(ctk.CTkToplevel):
 
 
     def on_checkbox(self, i):
+        """Shows or hides the answer entry for question i. Limits selection to 3 questions."""
         ticked_checkboxes_count = sum(var.get() for var in self.check_vars)
         entry = self.questions_entries[i]
         if self.check_vars[i].get():
@@ -77,6 +78,7 @@ class SecurityQuestionsSetupWindow(ctk.CTkToplevel):
             self.setup_questions_button.configure(state="disabled")
 
     def setup_security_questions(self):
+        """Collects the selected questions and answers, then sends them to the app."""
         chosen_questions_dict = {}
         for i in range(len(self.check_vars)):
             if self.check_vars[i].get():
@@ -91,7 +93,9 @@ class SecurityQuestionsSetupWindow(ctk.CTkToplevel):
 
 
     def display_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

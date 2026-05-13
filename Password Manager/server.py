@@ -323,6 +323,8 @@ class Server:
         self.build_and_queue_message(conn, "face_recognition_set_msg", "")
 
     def handle_save_preferences_message(self, conn, data):
+        """Receives conn and data, and handles the client's request to save password preferences for a registered site.\n
+        Possible responds: preferences_saved, not_registered."""
         data_list = self.protocol_handler.split_data(data)
         site_url = data_list[0]
         preferences_json = data_list[1]
@@ -335,6 +337,8 @@ class Server:
             self.build_and_queue_message(conn, "preferences_saved_msg", "")
 
     def handle_get_preferences_message(self, conn, data):
+        """Receives conn and data, and sends the client their password preferences for a registered site.\n
+        Possible responds: your_preferences, not_registered."""
         user_id = self.user_manager.logged_users[conn]
         if not self.db_manager.does_site_exist(user_id, data):
             self.build_and_queue_message(conn, "not_registered_msg", "")
@@ -345,6 +349,9 @@ class Server:
 
 
     def handle_register_site_message(self, conn, data):
+        """Receives conn and data, and handles the client's request to register a new site.\n
+        Generates a password using the client's custom preferences if provided, otherwise uses DEFAULT_SETTINGS.\n
+        Possible responds: registration_ok (with generated password), already_registered."""
         data_list = self.protocol_handler.split_data(data)
         site_url = data_list[0]
         site_username = data_list[1]
@@ -362,13 +369,10 @@ class Server:
             self.db_manager.register_site(user_id, site_url, site_username, generated_password, password_preferences)
             self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
 
-        # if site_url in self.user_manager.user_dict[username].registered_sites.keys():
-        #     self.build_and_queue_message(conn, "already_registered_msg", "")
-        # else:
-        #     generated_password = self.user_manager.register_site(username, site_url, site_username)
-        #     self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
 
     def handle_registered_sites_message(self, conn, data):
+        """Receives conn and data, and sends the client a list of their registered sites.\n
+        If data is "True", sends only a list of deleted sites."""
         user_id = self.user_manager.logged_users[conn]
         if data == "True":
             get_deleted_sites = True
@@ -380,6 +384,8 @@ class Server:
         
 
     def handle_site_info_message(self, conn, data):
+        """Receives conn and data, and sends the client the username and password of a registered site.\n
+        Possible responds: info, not_registered."""
         site_url = data
         user_id = self.user_manager.logged_users[conn]
 
@@ -389,15 +395,11 @@ class Server:
         else:
             self.build_and_queue_message(conn, "not_registered_msg", "")
 
-        # user_registered_sites = self.user_manager.user_dict[username].registered_sites
-        # if site_url not in user_registered_sites.keys():
-        #     self.build_and_queue_message(conn, "not_registered_msg", "")
-        # else:
-        #     site_username = user_registered_sites[site_url]["username"]
-        #     site_password = user_registered_sites[site_url]["password"]
-        #     self.build_and_queue_message(conn, "info_msg", f"{site_username}{DATA_DELIMITER}{site_password}")
 
     def handle_change_password_message(self, conn, data):
+        """Receives conn and data, and handles the client's request to change the password for a registered site.\n
+        Generates a new password based on the site's stored password preferences.\n
+        Possible responds: change_ok (with generated password), not_registered."""
         site_url = data
         user_id = self.user_manager.logged_users[conn]
 
@@ -408,16 +410,12 @@ class Server:
             self.build_and_queue_message(conn, "change_ok_msg", generated_password)
         else:
             self.build_and_queue_message(conn, "not_registered_msg", "")
-            
-        # user_registered_sites = self.user_manager.user_dict[username].registered_sites
-        # if site_url not in user_registered_sites.keys():
-        #     self.build_and_queue_message(conn, "not_registered_msg", "")
-        # else:
-        #     generated_password = self.user_manager.change_password(username, site_url)
-        #     self.build_and_queue_message(conn, "change_ok_msg", generated_password)
+
 
 
     def handle_delete_site_msg(self, conn, data):
+        """Receives conn and data, and handles the client's request to delete a registered site.\n
+        Possible responds: site_deleted, not_registered."""
         site_url = data
         user_id = self.user_manager.logged_users[conn]
 
@@ -429,6 +427,8 @@ class Server:
 
 
     def handle_recover_site_msg(self, conn, data):
+        """Receives conn and data, and handles the client's request to recover a previously deleted site.\n
+        Possible responds: site_recovered, not_registered."""
         site_url = data
         user_id = self.user_manager.logged_users[conn]
 
@@ -440,11 +440,13 @@ class Server:
 
 
     def build_and_queue_message(self, conn, cmd, data):
+        """Receives conn, cmd and data, builds a protocol message and adds it to the outgoing messages queue."""
         msg = self.protocol_handler.build_message(self.protocol_handler.server_messages[cmd], data)
         self.messages_to_send.append((conn, msg))
         
 
     def send_messages_to_clients(self):
+        """Sends all queued messages to clients encrypted, and clears the outgoing messages queue."""
         for conn, msg in self.messages_to_send:
             encrypted_msg = self.conn_manager.encrypt_msg(conn, msg)
             self.conn_manager.send_msg(conn, encrypted_msg)

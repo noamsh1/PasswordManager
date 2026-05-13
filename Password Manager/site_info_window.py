@@ -10,9 +10,9 @@ class SiteInfoWindow(ctk.CTkToplevel):
 
     def __init__(self, app, site_username, site_password, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
-        self.site_username = site_username
-        self.site_password = site_password
+        self.app = app    # Reference to the UI instance
+        self.site_username = site_username    # Username for the site
+        self.site_password = site_password    # Password for the site
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -51,10 +51,12 @@ class SiteInfoWindow(ctk.CTkToplevel):
         self.grab_set()
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()
 
 
     def call_copy_password(self):
+        """Copies the site password to the clipboard and shows a confirmation."""
         self.app.copy_to_clipboard(self.site_password)
         self.password_copied_text.configure(text="Password copied to clipboard")
 

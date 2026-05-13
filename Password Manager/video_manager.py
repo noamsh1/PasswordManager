@@ -6,12 +6,14 @@ class VideoManager:
 
     @staticmethod
     def list_cameras():
+        """Returns a list of available camera devices."""
         graph = FilterGraph()
         cameras = graph.get_input_devices()
         return cameras
     
     @staticmethod
     def get_cap(camera_index):
+        """Receives a camera index and returns a VideoCapture object for it. Returns None if the camera could not be opened."""
         cap = cv2.VideoCapture(camera_index)
         if not cap.isOpened():
             return None
@@ -20,6 +22,9 @@ class VideoManager:
 
     @staticmethod
     def get_frame(cap : cv2.VideoCapture):
+        """Receives a VideoCapture object and returns a tuple containing a success flag,
+        a mirrored RGB frame for display, and a small RGB frame for face recognition processing.\n
+        If the frame could not be read, releases the capture and returns (False, )."""
         ret, frame = cap.read()
         if not ret:
             cap.release()

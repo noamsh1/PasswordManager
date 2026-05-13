@@ -6,6 +6,8 @@ class FaceRecognizer:
 
     @staticmethod
     def get_face_encodings(rgb_frame):
+        """Receives an RGB frame, detects faces and returns the face encoding of the first face found as binary data.
+        Returns None if no face was detected."""
         face_locations = face_recognition.face_locations(rgb_frame, number_of_times_to_upsample= 2, model= "hog")
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
@@ -19,6 +21,8 @@ class FaceRecognizer:
     
     @staticmethod
     def compare_faces(stored_bin_face_encoding, bin_face_encoding):
+        """Receives a stored face encoding and a login face encoding as binary data,
+        compares the two face encodings and returns True if they match, False otherwise."""
         if not bin_face_encoding or not stored_bin_face_encoding:
             return False
         

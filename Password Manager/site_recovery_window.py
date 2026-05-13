@@ -9,7 +9,7 @@ class SiteRecoveryWindow(ctk.CTkToplevel):
 
     def __init__(self, app, deleted_sites, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -53,12 +53,15 @@ class SiteRecoveryWindow(ctk.CTkToplevel):
         self.recover_button.configure(state="normal")
 
     def recover_site(self):
+        """Sends a recovery request for the selected site."""
         site_url = self.deleted_sites_list.get()
         self.app.call_recover_site(site_url)
 
     def display_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Releases the grab and destroys the window."""
         self.grab_release()
         self.destroy()

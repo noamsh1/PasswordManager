@@ -8,7 +8,7 @@ class AuthSelectWindow(ctk.CTkToplevel):
 
     def __init__(self, app, auth_options, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -68,19 +68,23 @@ class AuthSelectWindow(ctk.CTkToplevel):
         return frame
 
     def call_email_login(self):
+        """Closes the window and initiates email code login."""
         email = self.app.get_email()
         self.close_window()
         self.app.request_login_code(email)
 
     def call_voice_auth(self):
+        """Closes the window and opens the voice recording window."""
         self.close_window()
         self.app.run_voice_recording_window()
 
     def call_face_recognition(self):
+        """Closes the window and opens the video capture window."""
         self.close_window()
         self.app.run_video_capture_window()
 
     def close_window(self):
+        """Releases the grab and destroys the window."""
         self.grab_release()
         self.withdraw()
         self.destroy()

@@ -10,7 +10,7 @@ class SignupWindow(ctk.CTkToplevel):
 
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -135,6 +135,7 @@ class SignupWindow(ctk.CTkToplevel):
         return frame
 
     def can_signup(self):
+        """Enables the signup button."""
         self.signup_button.configure(state="normal")
 
     def show_password(self, num):
@@ -154,22 +155,27 @@ class SignupWindow(ctk.CTkToplevel):
             self.show_password_button_2.configure(text="\uE7B3", command=lambda: self.show_password(2))
 
     def call_signup(self):
+        """Validates the form fields and sends a signup request."""
         username = self.username_entry.get().strip()
         password = self.password_entry.get()
         password_2= self.password_entry_2.get()
         email = self.email_entry.get()
-        if password != password_2:
+        if username == "":
+            self.display_signup_error("Username cannot be empty")
+        elif password != password_2:
             self.display_signup_error("Passwords do not match")
         else:
             self.app.call_signup(username, password, email)
 
     def on_email_entry_changed(self, *args):
+        """Debounces the email validity check when the email entry changes."""
         self.email_entry.configure(border_color=palette_color("input_border"))
         if self.email_debounce_timer:
             self.after_cancel(self.email_debounce_timer)
         self.email_debounce_timer = self.after(500, self.check_email_validity)
 
     def check_email_validity(self):
+        """Checks the entered email's validity in a background thread."""
         email = self.email_entry.get()
         self.verify_email_button.configure(state="disabled", border_color=palette_color("surface2"))
         self.email_entry.configure(border_color=palette_color("warning"))
@@ -177,39 +183,51 @@ class SignupWindow(ctk.CTkToplevel):
         thread.start()
 
     def email_valid(self):
+        """Highlights the email field as valid and enables the verify button."""
         self.email_entry.configure(border_color=palette_color("success"))
         self.verify_email_button.configure(state="normal")
 
     def email_invalid(self):
+        """Highlights the email field as invalid."""
         self.email_entry.configure(border_color=palette_color("error"))
 
     def call_email_verification(self):
+        """Sends an email verification code request."""
         email = self.email_entry.get()
         self.app.request_login_code(email)
 
     def email_verified(self):
+        """Marks the email as verified and disables the verify button."""
         self.verify_email_button.configure(state="disabled", border_color=palette_color("success"))
 
     def call_run_voice_recording_window(self):
+        """Opens the voice recording window for voice auth setup."""
         self.app.run_voice_recording_window()
 
     def voice_auth_added(self):
+        """Marks the voice auth option row as configured."""
         self.voice_auth_row.configure(border_color=palette_color("accent"))
 
     def call_run_video_capture_window(self):
+        """Opens the video capture window for face recognition setup."""
         self.app.run_video_capture_window()
 
     def face_recognition_added(self):
+        """Marks the face recognition option row as configured."""
         self.face_recognition_row.configure(border_color=palette_color("accent"))
 
     def call_setup_security_questions_window(self):
+        """Opens the security questions setup window."""
         self.app.run_security_questions_setup_window()
 
     def questions_setup_successful(self):
+        """Marks the security questions option row as configured."""
         self.security_questions_row.configure(border_color=palette_color("accent"))
 
     def display_signup_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window."""
         self.destroy()

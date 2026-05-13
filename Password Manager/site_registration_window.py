@@ -8,7 +8,7 @@ class SiteRegistrationWindow(ctk.CTkToplevel):
 
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
+        self.app = app    # Reference to the UI instance
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -52,16 +52,18 @@ class SiteRegistrationWindow(ctk.CTkToplevel):
         self.error_text = ctk.CTkLabel(self, anchor="center", text="", font=("sans", 13), text_color=palette_color("error"))
         self.error_text.place(relx=0.5, y=410, anchor="center")
 
-        self.preferences = None
+        self.preferences = None    # Password generation preferences, or None for defaults
 
         self.grab_set()
 
 
     def call_password_preferences_window(self):
+        """Opens the password preferences window with current preferences."""
         self.app.run_password_preferences_window(self.preferences)
 
 
     def call_register_site(self):
+        """Validates the entries and sends a site registration request."""
         site_url = self.site_url_entry.get()
         if site_url == "":
             self.display_registration_error("You must enter a site url before registration")
@@ -73,9 +75,11 @@ class SiteRegistrationWindow(ctk.CTkToplevel):
         self.app.call_register_site(site_url, site_username, self.preferences)
 
     def display_registration_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window and returns whether the user wants the password copied."""
         copy_password = self.copy_password_checkbox.get()
         self.destroy()
         return copy_password

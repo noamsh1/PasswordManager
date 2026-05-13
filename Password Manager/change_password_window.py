@@ -8,9 +8,9 @@ class ChangePasswordWindow(ctk.CTkToplevel):
 
     def __init__(self, app, site_url, site_username, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app = app
-        self.site_url = site_url
-        self.site_username = site_username
+        self.app = app    # Reference to the UI instance
+        self.site_url = site_url    # URL of the site to change the password for
+        self.site_username = site_username    # Username associated with the site
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -58,16 +58,20 @@ class ChangePasswordWindow(ctk.CTkToplevel):
 
 
     def call_password_preferences_window(self):
+        """Opens the password preferences window for this site."""
         self.app.get_preferences_and_initiate_window(self.site_url)
 
 
     def change_site_password(self):
+        """Requests a new password for this site via the app."""
         self.app.call_change_site_password(self.site_url)
 
     def display_error(self, msg):
+        """Displays an error message in the window."""
         self.error_text.configure(text=msg)
 
     def close_window(self):
+        """Destroys the window and returns whether the user wants the password copied."""
         copy_password = self.copy_password_checkbox.get()
         self.destroy()
         return copy_password

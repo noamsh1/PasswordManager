@@ -1,9 +1,9 @@
 import random
 
-MINIMUM_PASSWORD_LENGTH = 8
-MAXIMUM_PASSWORD_LENGTH = 64
-DEFAULT_LENGTH = 16
-DEFAULT_SPECIAL = "-_!?@#$%^&*/|"
+MINIMUM_PASSWORD_LENGTH = 8    # Minimum length required for a password to be considered strong
+MAXIMUM_PASSWORD_LENGTH = 64    # Maximum allowed password length
+DEFAULT_LENGTH = 16    # Default generated password length
+DEFAULT_SPECIAL = "-_!?@#$%^&*/|"    # Default set of allowed special characters
 DEFAULT_SETTINGS = {"max_length" : DEFAULT_LENGTH,
                     "include" : {"Upper" : True, "Lower" : True, "Number" : True, "Special" : True},
                     "special_allowed" : DEFAULT_SPECIAL,
@@ -19,6 +19,9 @@ class PasswordHandler:
 
     @staticmethod
     def generate_password(preferences):
+        """Receives a preferences dict and generates a random password that satisfies the given rules.
+        Ensures the first character matches the start rules and that at least one character from each
+        included category is present."""
         length = preferences["max_length"]
         include_rules = preferences["include"]
         start_rules = preferences["start"]
@@ -61,6 +64,8 @@ class PasswordHandler:
 
     @staticmethod
     def is_strong_password(password):
+        """Receives a password and returns True if it meets the minimum strength requirements:
+        at least 8 characters, with uppercase, lowercase, digit, and special character."""
         if len(password) >= MINIMUM_PASSWORD_LENGTH and any(char.islower() for char in password) and any(char.isupper() for char in password) and any(char.isdigit() for char in password) and any(not char.isalnum() for char in password):
             return True
         else:
