@@ -4,7 +4,7 @@ DARK_PALETTE = {
 	"surface2": "#2a2a2a",
 	"accent": "#2ecc71",
 	"accent_hover": "#25a35c",
-	"btn_secondary": "#2a2a2a",
+	"btn_secondary": "#494747",
 	"btn_auth": "#fb923c",
 	"btn_auth_hover" : "#ea7b21",
 	"error": "#ef4444",

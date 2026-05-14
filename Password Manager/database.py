@@ -11,7 +11,6 @@ import base64
 load_dotenv()
 
 DEFAULT_DB_PATH = r".\Database\PasswordManager.db"
-#DB_PATH = r"C:\Users\noams\OneDrive\Databases\PasswordManager.db"
 SECURITY_QUESTIONS_LIST = ["What is the name of your grandmother from your father's side?",
                            "What was the house number of the house you lived in as a child? (digits)",
                            "What was the make and model of the first-ever mobile phone you owned?",
@@ -33,7 +32,7 @@ class DataBase:
         db_path = os.getenv("DB_PATH", DEFAULT_DB_PATH)
         db_dir = os.path.dirname(db_path)
         if not os.path.exists(db_path):
-            if db_dir:
+            if db_dir and not os.path.exists(db_dir):
                 os.makedirs(db_dir)
             init_db = True
         self.conn = sqlite3.connect(db_path)    # SQLite connection object
