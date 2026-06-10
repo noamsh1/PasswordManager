@@ -343,7 +343,7 @@ class Client:
         return registered_sites_list
 
     def get_site_info(self, site_url):
-        """Receives a site URL and requests the site's username and password from the server. Returns them as a tuple."""
+        """Receives a site URL and requests the site's username, password and last password change date from the server. Returns them as a tuple."""
         self.build_and_send_message(self.protocol_handler.client_messages["site_info_msg"], site_url)
         cmd, data = self.receive_and_parse_message()
         if cmd == self.protocol_handler.server_messages["not_registered_msg"]:
@@ -352,7 +352,8 @@ class Client:
             data_list = data.split(DATA_DELIMITER)
             site_username = data_list[0]
             site_password = data_list[1]
-            return site_username, site_password
+            days_since_last_change = data_list[2]
+            return site_username, site_password, days_since_last_change
         
     def change_password(self, site_url):
         """Receives a site URL and requests the server to generate a new password for the site. Returns the new password."""

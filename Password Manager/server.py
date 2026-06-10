@@ -366,7 +366,8 @@ class Server:
             else:
                 password_preferences = None
                 generated_password = PasswordHandler.generate_password(DEFAULT_SETTINGS)
-            self.db_manager.register_site(user_id, site_url, site_username, generated_password, password_preferences)
+            password_set_date = datetime.datetime.now().isoformat()
+            self.db_manager.register_site(user_id, site_url, site_username, generated_password, password_set_date, password_preferences)
             self.build_and_queue_message(conn, "registration_ok_msg", generated_password)
 
 
@@ -390,8 +391,10 @@ class Server:
         user_id = self.user_manager.logged_users[conn]
 
         if self.db_manager.does_site_exist(user_id, site_url):
-            site_username, site_password = self.db_manager.get_site_info(user_id, site_url)
-            self.build_and_queue_message(conn, "info_msg", f"{site_username}{DATA_DELIMITER}{site_password}")
+            site_username, site_password, password_change_date = self.db_manager.get_site_info(user_id, site_url)
+            last_change_date = datetime.datetime.fromisoformat(password_change_date)
+            days_since_last_change = (datetime.datetime.now() - last_change_date).days
+            self.build_and_queue_message(conn, "info_msg", f"{site_username}{DATA_DELIMITER}{site_password}{DATA_DELIMITER}{days_since_last_change}")
         else:
             self.build_and_queue_message(conn, "not_registered_msg", "")
 
@@ -406,7 +409,8 @@ class Server:
         if self.db_manager.does_site_exist(user_id, site_url):
             password_preference = self.db_manager.get_password_preferences(user_id, site_url)
             generated_password = PasswordHandler.generate_password(password_preference)
-            self.db_manager.change_site_password(user_id, site_url, generated_password)
+            password_change_date = datetime.datetime.now().isoformat()
+            self.db_manager.change_site_password(user_id, site_url, generated_password, password_change_date)
             self.build_and_queue_message(conn, "change_ok_msg", generated_password)
         else:
             self.build_and_queue_message(conn, "not_registered_msg", "")

@@ -10,7 +10,7 @@ SENDER_GMAIL = "mypassmanager10@gmail.com"
 SENDER_GMAIL_PASSWORD = "jhbjotmuqxailhkt"
 EMAIL_CODE_EXPIRATION_TIME = 45
 LOGIN_CODE_MSG = """\
-Subject: Password Manager Test
+Subject: Password Manager One-Time Code
 
 Your login code is {code}."""
 

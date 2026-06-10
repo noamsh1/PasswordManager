@@ -86,7 +86,7 @@ class ServerConnectionManager(ConnectionManager):
 
     def generate_RSA(self):
         """Generates public and private RSA keys. Saves the private RSA key in an environment variable."""
-        private_key = rsa.generate_private_key(public_exponent = 65537, key_size = 4096) # creates a 4096 bytes private RSA key
+        private_key = rsa.generate_private_key(public_exponent = 65537, key_size = 4096) # creates a 4096 bit private RSA key
         public_key = private_key.public_key()
 
         private_pem = private_key.private_bytes(encoding = serialization.Encoding.PEM, 

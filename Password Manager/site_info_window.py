@@ -8,11 +8,12 @@ WINDOW_HEIGHT = 340
 
 class SiteInfoWindow(ctk.CTkToplevel):
 
-    def __init__(self, app, site_username, site_password, *args, **kwargs):
+    def __init__(self, app, site_username, site_password, days_since_last_change, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = app    # Reference to the UI instance
         self.site_username = site_username    # Username for the site
         self.site_password = site_password    # Password for the site
+        self.days_since_last_change = days_since_last_change    # Days since the last password change for the site
 
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(False, False)
@@ -36,6 +37,8 @@ class SiteInfoWindow(ctk.CTkToplevel):
         self.password_label.place(x=30, y=195)
         self.site_password_entry = ctk.CTkEntry(self, width=290, height=38, corner_radius=8, fg_color=palette_color("input_bg"), border_color=palette_color("input_border"), text_color=palette_color("text"), font=("sans", 15), textvariable=tk.StringVar(self, self.site_password), show="•", state="disabled")
         self.site_password_entry.place(x=30, y=215)
+        self.last_change_entry = ctk.CTkLabel(self, anchor="w", text=f"{self.days_since_last_change} days since last password change", font=("sans", 11, "bold"), text_color=palette_color("text_dim"))
+        self.last_change_entry.place(x=30, y=253)
 
         self.site_password_show_button = ctk.CTkButton(self, width=42, height=38, corner_radius=8, fg_color=palette_color("surface2"), hover_color=palette_color("input_border"), text="\uE7B3", font=("Segoe MDL2 Assets", 16), text_color=palette_color("text"), command=self.show_password)
         self.site_password_show_button.place(x=330, y=215)
@@ -46,7 +49,7 @@ class SiteInfoWindow(ctk.CTkToplevel):
 
 
         self.password_copied_text = ctk.CTkLabel(self, anchor="center", text="", font=("sans", 13), text_color=palette_color("success"))
-        self.password_copied_text.place(relx=0.5, y=275, anchor="center")
+        self.password_copied_text.place(relx=0.5, y=295, anchor="center")
 
         self.grab_set()
 

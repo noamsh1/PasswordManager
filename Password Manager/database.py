@@ -95,6 +95,7 @@ class DataBase:
                             "site_url"	BLOB NOT NULL,
                             "site_username"	BLOB NOT NULL,
                             "site_password"	BLOB NOT NULL,
+                            "password_change_date" BLOB NOT NULL,
                             "preference_id"	INTEGER,
                             "is_deleted" BOOLEAN DEFAULT 0,
                             PRIMARY KEY("user_id","site_id"),
@@ -461,16 +462,16 @@ class DataBase:
         return preferences
 
 
-    def register_site(self, user_id, site_url, site_username, site_password, password_preferences = None):
-        """Receives a user_id, site URL, site username, site password and optional password preferences,
+    def register_site(self, user_id, site_url, site_username, site_password, password_set_date, password_preferences = None):
+        """Receives a user_id, site URL, site username, site password, password set date and optional password preferences,
         encrypts the site data and inserts it into the database with default password preferences.
         If custom password preferences are provided, updates them after insertion."""
         site_id = self.count_registered_sites(user_id)
         preference_id = self.set_default_password_preferences()
-        encrypted_site_url, encrypted_site_username, encrypted_site_password = self.encrypt_data(user_id, [site_url, site_username, site_password])
-        self.cur.execute("""INSERT INTO USER_SITE (user_id, site_id, site_url, site_username, site_password, preference_id)
-                        VALUES(?,?,?,?,?,?)""",
-                        (user_id, site_id, encrypted_site_url, encrypted_site_username, encrypted_site_password, preference_id))
+        encrypted_site_url, encrypted_site_username, encrypted_site_password, encrypted_password_set_date = self.encrypt_data(user_id, [site_url, site_username, site_password, password_set_date])
+        self.cur.execute("""INSERT INTO USER_SITE (user_id, site_id, site_url, site_username, site_password, password_change_date, preference_id)
+                        VALUES(?,?,?,?,?,?,?)""",
+                        (user_id, site_id, encrypted_site_url, encrypted_site_username, encrypted_site_password, encrypted_password_set_date, preference_id))
         
         if password_preferences is not None:
             self.update_password_preferences(user_id, site_url, password_preferences)
@@ -484,14 +485,14 @@ class DataBase:
         preference_id = self.cur.fetchone()[0]
         return preference_id
 
-    def change_site_password(self, user_id, site_url, new_site_password):
-        """Receives a user_id, site URL and a new password, encrypts the new password and updates it in the database."""
+    def change_site_password(self, user_id, site_url, new_site_password, password_change_date):
+        """Receives a user_id, site URL, a new password and the date of the change, encrypts the new password and updates it in the database."""
         site_id = self.get_site_id(user_id, site_url)
-        encrypted_site_password = self.encrypt_data(user_id, [new_site_password])[0]
+        encrypted_site_password, encrypted_password_change_date = self.encrypt_data(user_id, [new_site_password, password_change_date])
         self.cur.execute("""UPDATE USER_SITE
-                         SET site_password = ?
+                         SET site_password = ?, password_change_date = ?
                          WHERE user_id = ? AND site_id = ?""",
-                         (encrypted_site_password, user_id, site_id))
+                         (encrypted_site_password, encrypted_password_change_date, user_id, site_id))
 
         self.conn.commit()
 
@@ -508,9 +509,9 @@ class DataBase:
         return decrypted_sites
     
     def get_site_info(self, user_id, site_url):
-        """Receives a user_id and a site URL, and returns the decrypted site username and site password."""
+        """Receives a user_id and a site URL, and returns the decrypted site username, site password and date of the last change of the password."""
         site_id = self.get_site_id(user_id, site_url)
-        self.cur.execute("""SELECT site_username, site_password FROM USER_SITE WHERE user_id = ? AND site_id = ?""", 
+        self.cur.execute("""SELECT site_username, site_password, password_change_date FROM USER_SITE WHERE user_id = ? AND site_id = ?""", 
                          (user_id, site_id))
 
         site_info = self.cur.fetchone()

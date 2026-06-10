@@ -614,24 +614,24 @@ class UI:
     def show_selected_site_info(self):
         """Fetches and displays the info window for the currently selected site."""
         site_url = self.registered_sites_listbox.get()
-        site_username, site_password = self.call_site_info(site_url)
-        self.run_site_info_window(site_username, site_password)
+        site_username, site_password, days_since_last_change = self.call_site_info(site_url)
+        self.run_site_info_window(site_username, site_password, days_since_last_change)
 
     def call_site_info(self, site_url):
         """Returns the username and password for a given site from the client."""
         return self.client.get_site_info(site_url)
     
-    def run_site_info_window(self, site_username, site_password):
+    def run_site_info_window(self, site_username, site_password, days_since_last_change):
         """Opens the site info window, or focuses it if already open."""
         if self.site_info_window is None or not self.site_info_window.winfo_exists():
-            self.site_info_window = SiteInfoWindow(self, site_username, site_password)
+            self.site_info_window = SiteInfoWindow(self, site_username, site_password, days_since_last_change)
         else:
             self.site_info_window.focus()
 
     def initiate_change_password_window(self):
         """Fetches the selected site's info and opens the change password window."""
         site_url = self.registered_sites_listbox.get()
-        site_username, site_password = self.call_site_info(site_url)
+        site_username, site_password, days_since_last_change = self.call_site_info(site_url)
         self.run_change_site_password_window(site_url, site_username)
         
     def run_change_site_password_window(self, site_url, site_username):
