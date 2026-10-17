@@ -14,4 +14,10 @@ features:
 - Defense against DoS attacks and brute force in login.
 - "I forgot my password" mechanism for the application login.
 
+Under Releases, there are the server and client zips for download.
+
+To run the server, extract the server folder from the zip, and simply double click on server.exe.
+
+To run the client, open the client directory in the terminal, and run this command: client.exe "{server IP}" (Replace {server IP} with the server's IP address). If the server is running on your local machine, you can simply double click on client.exe since it automatically connects to localhost if no IP is provided.
+
 *For a much more detailed documentation of the project in Hebrew, go to Doc/Password Manager doc.pdf.
